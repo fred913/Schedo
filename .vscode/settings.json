@@ -13,5 +13,8 @@
         "editor.formatOnType": true,
         "editor.wordBasedSuggestions": "off",
         "editor.defaultFormatter": "eeyore.yapf"
-    }
+    },
+    "isort.args": [
+        "-w158"
+    ]
 }

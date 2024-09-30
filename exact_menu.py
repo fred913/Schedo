@@ -1,20 +1,20 @@
-import sys
 import datetime as dt
 import sys
 from shutil import copy
 
-from PyQt6 import uic
+from loguru import logger
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
-from loguru import logger
-from qfluentwidgets import FluentWindow, setTheme, Theme, FluentIcon as fIcon, ComboBox, \
-    PrimaryPushButton, Flyout, FlyoutAnimationType, InfoBarIcon, ListWidget, LineEdit, ToolButton, HyperlinkButton
-from win32 import win32api
+from qfluentwidgets import ComboBox
+from qfluentwidgets import FluentIcon as fIcon
+from qfluentwidgets import (FluentWindow, Flyout, FlyoutAnimationType, HyperlinkButton, InfoBarIcon, LineEdit, ListWidget, PrimaryPushButton, Theme,
+                            ToolButton, setTheme)
 
 import conf
-import list
 import menu
+import presets
+from utils import loadUi
 
 filename = conf.read_conf('General', 'schedule')
 current_week = dt.datetime.today().weekday()
@@ -22,16 +22,17 @@ temp_schedule = {'schedule': {}, 'schedule_even': {}}
 
 
 class ExactMenu(FluentWindow):
+
     def __init__(self):
         super().__init__()
         self.menu = None
-        self.interface = uic.loadUi('exact_menu.ui')
+        self.interface = loadUi('exact_menu.ui', raw=True)
         self.initUI()
         self.init_interface()
 
     def init_interface(self):
         select_temp_week = self.findChild(ComboBox, 'select_temp_week')  # 选择替换日期
-        select_temp_week.addItems(list.week)
+        select_temp_week.addItems(presets.week)
         select_temp_week.setCurrentIndex(current_week)
         select_temp_week.currentIndexChanged.connect(self.refresh_schedule_list)  # 日期选择变化
 
@@ -40,7 +41,7 @@ class ExactMenu(FluentWindow):
         tmp_schedule_list.itemChanged.connect(self.upload_item)
 
         class_kind_combo = self.findChild(ComboBox, 'class_combo')  # 课程类型
-        class_kind_combo.addItems(list.class_kind)
+        class_kind_combo.addItems(presets.class_kind)
 
         set_button = self.findChild(ToolButton, 'set_button')
         set_button.setIcon(fIcon.EDIT)
@@ -66,10 +67,17 @@ class ExactMenu(FluentWindow):
             filename = conf.read_conf('General', 'schedule')
         else:
             filename = 'backup.json'
+
+        data = conf.load_from_json(filename)
+
+        if data is None:
+            # file not found / format error
+            raise RuntimeError(f"Failed to load schedule file: {filename}")
+
         if conf.get_week_type():
-            return conf.load_from_json(filename)['schedule_even'][str(current_week)]
+            return data['schedule_even'][str(current_week)]
         else:
-            return conf.load_from_json(filename)['schedule'][str(current_week)]
+            return data['schedule'][str(current_week)]
 
     def save_temp_conf(self):
         try:
@@ -81,43 +89,51 @@ class ExactMenu(FluentWindow):
                 conf.write_conf('Temp', 'temp_schedule', filename)
                 conf.save_data_to_json(temp_schedule, filename)
             conf.write_conf('Temp', 'set_week', str(temp_week.currentIndex()))
-            Flyout.create(
-                icon=InfoBarIcon.SUCCESS,
-                title='保存成功',
-                content=f"已保存至 ./config.ini \n重启后失效。",
-                target=self.findChild(PrimaryPushButton, 'save_temp_conf'),
-                parent=self,
-                isClosable=True,
-                aniType=FlyoutAnimationType.PULL_UP
-            )
+            Flyout.create(icon=InfoBarIcon.SUCCESS,
+                          title='保存成功',
+                          content=f"已保存至 ./config.ini \n重启后失效。",
+                          target=self.findChild(PrimaryPushButton, 'save_temp_conf'),
+                          parent=self,
+                          isClosable=True,
+                          aniType=FlyoutAnimationType.PULL_UP)
         except Exception as e:
-            Flyout.create(
-                icon=InfoBarIcon.ERROR,
-                title='保存失败',
-                content=f"错误信息：{e}",
-                target=self.findChild(PrimaryPushButton, 'save_temp_conf'),
-                parent=self,
-                isClosable=True,
-                aniType=FlyoutAnimationType.PULL_UP
-            )
+            Flyout.create(icon=InfoBarIcon.ERROR,
+                          title='保存失败',
+                          content=f"错误信息：{e}",
+                          target=self.findChild(PrimaryPushButton, 'save_temp_conf'),
+                          parent=self,
+                          isClosable=True,
+                          aniType=FlyoutAnimationType.PULL_UP)
 
     def refresh_schedule_list(self):
         global current_week
         current_week = self.findChild(ComboBox, 'select_temp_week').currentIndex()
         tmp_schedule_list = self.findChild(ListWidget, 'schedule_list')  # 换课列表
         tmp_schedule_list.clear()
+
+        data = conf.load_from_json(filename)
+        if data is None:
+            # file not found / format error
+            raise RuntimeError(f"Failed to load schedule list file: {filename}")
+
         if conf.get_week_type():
-            tmp_schedule_list.addItems(conf.load_from_json(filename)['schedule_even'][str(current_week)])
+            tmp_schedule_list.addItems(data['schedule_even'][str(current_week)])
         else:
-            tmp_schedule_list.addItems(conf.load_from_json(filename)['schedule'][str(current_week)])
+            tmp_schedule_list.addItems(data['schedule'][str(current_week)])
 
     def upload_item(self):
         global temp_schedule
         se_schedule_list = self.findChild(ListWidget, 'schedule_list')
         cache_list = []
         for i in range(se_schedule_list.count()):  # 缓存ListWidget数据至列表
-            item_text = se_schedule_list.item(i).text()
+            it = se_schedule_list.item(i)
+            if it is None:
+                logger.warning(f"ListWidget item {i} is None; shouldn't happen")
+                continue
+
+            item_text = it.text()
             cache_list.append(item_text)
+
         if conf.get_week_type():
             temp_schedule['schedule_even'][str(current_week)] = cache_list
         else:
@@ -138,7 +154,10 @@ class ExactMenu(FluentWindow):
                     selected_item.setText(custom_class.text())
 
     def initUI(self):
-        screen_geometry = QApplication.primaryScreen().geometry()
+        primary_screen = QApplication.primaryScreen()
+        if primary_screen is None:
+            raise RuntimeError("Failed to get primary screen")
+        screen_geometry = primary_screen.geometry()
         screen_width = screen_geometry.width()
 
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
@@ -147,18 +166,19 @@ class ExactMenu(FluentWindow):
         self.resize(1000, 700)
         self.setWindowTitle('Class Widgets - 更多功能')
         self.setWindowIcon(QIcon('img/favicon-exmenu.ico'))
-        self.move(int(screen_width/2-500), 150)  # 窗体居中，但不完全居中
+        self.move(int(screen_width / 2 - 500), 150)  # 窗体居中，但不完全居中
 
         self.addSubInterface(self.interface, fIcon.INFO, '更多设置')
 
-    def closeEvent(self, event):
-        event.ignore()
+    def closeEvent(self, e):
+        e.ignore()
         self.hide()
 
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    if sys.platform == 'win32' and sys.getwindowsversion().build >= 22000:  # 修改在win11高版本阴影异常
+    if sys.platform == 'win32' and sys.getwindowsversion().build >= 22000:
+        # 修改在win11高版本阴影异常
         app.setStyle("fusion")
     ex = ExactMenu()
     ex.show()

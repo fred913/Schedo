@@ -1,15 +1,14 @@
 import sys
 
-from PyQt6 import uic
-from PyQt6.QtWidgets import QWidget, QApplication, QLabel, QFrame
-from PyQt6.QtCore import Qt, QPropertyAnimation, QRect, QEasingCurve, QParallelAnimationGroup, QTimer
-from playsound import playsound
-from qfluentwidgets import setThemeColor
-from win32 import win32api
 from loguru import logger
+from playsound import playsound
+from PyQt6.QtCore import QEasingCurve, QParallelAnimationGroup, QPropertyAnimation, QRect, Qt, QTimer
+from PyQt6.QtWidgets import QApplication, QFrame, QLabel, QWidget
+from qfluentwidgets import setThemeColor
 
 import conf
-import list
+import presets
+from utils import loadUi
 
 attend_class = 'audio/attend_class.wav'
 finish_class = 'audio/finish_class.wav'
@@ -22,9 +21,10 @@ window_list = []  # 窗口列表
 
 # 重写力
 class tip_toast(QWidget):
+
     def __init__(self, pos, width, state=1, lesson_name=''):
         super().__init__()
-        uic.loadUi("widget-toast-bar.ui", self)
+        loadUi("widget-toast-bar.ui", base_instance=self)
 
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.Tool)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -65,15 +65,13 @@ class tip_toast(QWidget):
                                   'background-color: qlineargradient('
                                   'spread:pad, x1:0, y1:0, x2:1, y2:1,'
                                   ' stop:0 rgba(255, 200, 150, 255), stop:1 rgba(217, 147, 107, 255)'
-                                  ');'
-                                  )
+                                  ');')
         else:
             backgnd.setStyleSheet('font-weight: bold; border-radius: 8px; '
                                   'background-color: qlineargradient('
                                   'spread:pad, x1:0, y1:0, x2:1, y2:1,'
                                   ' stop:0 rgba(166, 200, 140, 255), stop:1 rgba(107, 217, 170, 255)'
-                                  ');'
-                                  )
+                                  ');')
         # 设置窗口初始大小
         mini_size_x = 120
         mini_size_y = 20
@@ -87,9 +85,7 @@ class tip_toast(QWidget):
         self.geometry_animation = QPropertyAnimation(self, b"geometry")
         self.geometry_animation.setDuration(350)  # 动画持续时间
         self.geometry_animation.setStartValue(
-            QRect(int(start_x + mini_size_x / 2), int(start_y + mini_size_y / 2),
-                  total_width - mini_size_x, 125 - mini_size_y)
-        )
+            QRect(int(start_x + mini_size_x / 2), int(start_y + mini_size_y / 2), total_width - mini_size_x, 125 - mini_size_y))
         self.geometry_animation.setEndValue(QRect(start_x, start_y, total_width, 125))
         self.geometry_animation.setEasingCurve(QEasingCurve.Type.InOutCirc)
 
@@ -115,8 +111,7 @@ class tip_toast(QWidget):
         self.geometry_animation_close.setDuration(350)  # 动画持续时间
         self.geometry_animation_close.setStartValue(QRect(start_x, start_y, total_width, 125))
         self.geometry_animation_close.setEndValue(
-            QRect(int(start_x + mini_size_x / 2), int(start_y + mini_size_y / 2),
-                  total_width - mini_size_x, 125 - mini_size_y))
+            QRect(int(start_x + mini_size_x / 2), int(start_y + mini_size_y / 2), total_width - mini_size_x, 125 - mini_size_y))
         self.geometry_animation_close.setEasingCurve(QEasingCurve.Type.InOutCirc)
 
         self.opacity_animation_close = QPropertyAnimation(self, b"windowOpacity")
@@ -139,8 +134,8 @@ def main(state=1, lesson_name=''):
         screen_geometry = QApplication.primaryScreen().geometry()
         screen_width = screen_geometry.width()
         spacing = -5
-        widgets = list.get_widget_config()
-        total_width = total_width = sum((list.widget_width[key] for key in widgets), spacing * (len(widgets) - 1))
+        widgets = presets.get_widget_config()
+        total_width = total_width = sum((presets.widget_width[key] for key in widgets), spacing * (len(widgets) - 1))
 
         start_x = int((screen_width - total_width) / 2)
         start_y = int(conf.read_conf('General', 'margin'))

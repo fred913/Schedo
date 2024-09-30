@@ -1,19 +1,21 @@
-from shutil import copy
-from PyQt6 import uic
-from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QProgressBar, QGraphicsBlurEffect, QPushButton, \
-    QGraphicsDropShadowEffect, QSystemTrayIcon, QMenu
-from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QRect, QEasingCurve
-from PyQt6.QtGui import QColor, QIcon
-from loguru import logger
-import sys
-from qfluentwidgets import Theme, setTheme, setThemeColor, MessageBox, Dialog
 import datetime as dt
-import list
-import conf
-import tip_toast
+import sys
+from shutil import copy
 
-import menu
+from loguru import logger
+from PyQt6 import uic
+from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, QRect, Qt, QTimer
+from PyQt6.QtGui import QColor, QIcon
+from PyQt6.QtWidgets import QApplication, QGraphicsBlurEffect, QGraphicsDropShadowEffect, QLabel, QMenu, QProgressBar, QPushButton, QSystemTrayIcon, QWidget
+from qfluentwidgets import Theme, setTheme, setThemeColor
+
+import conf
 import exact_menu
+import menu
+import presets
+import tip_toast
+from exceptions import UnsupportedOperationPlatformError
+from utils import loadUi
 
 today = dt.date.today()
 filename = conf.read_conf('General', 'schedule')
@@ -38,10 +40,22 @@ logger.add("log/ClassWidgets_main_{time}.log", rotation="10 MB", encoding="utf-8
 # 获取课程上下午开始时间
 def get_start_time():
     global morning_st, afternoon_st, timeline_data
-    morning_st = 0
-    afternoon_st = 0
+    morning_st = None
+    afternoon_st = None
     loaded_data = conf.load_from_json(filename)
+    if loaded_data is None:
+        logger.error('加载课程表文件失败: 不符合 JSON 格式规范或文件不存在')
+        return
+
+    if not isinstance(loaded_data, dict):
+        logger.error('课程表文件格式错误：JSON 根对象应当是一个字典')
+        return
+
     timeline = loaded_data.get('timeline')
+
+    if timeline is None:
+        logger.error('课程表文件格式错误：缺少 timeline 字段')
+        return
 
     for item_name, item_time in timeline.items():
         try:
@@ -63,19 +77,49 @@ def get_start_time():
 def get_current_lessons():  # 获取今日课程
     global current_lessons
     loaded_data = conf.load_from_json(filename)
+
+    if loaded_data is None:
+        logger.error('加载课程表文件失败: 不符合 JSON 格式规范或文件不存在')
+        return
+
+    if not isinstance(loaded_data, dict):
+        logger.error('课程表文件格式错误：JSON 根对象应当是一个字典')
+        return
+
     timeline = loaded_data.get('timeline')
+
+    if timeline is None:
+        logger.error('课程表文件格式错误：缺少 timeline 字段')
+        return
+
+    if not isinstance(timeline, dict):
+        logger.error('课程表文件格式错误：timeline 字段应当是一个字典')
+        return
+
     if conf.read_conf('General', 'enable_alt_schedule') == '1':
         try:
             if conf.get_week_type():
                 schedule = loaded_data.get('schedule_even')
+                if schedule is None:
+                    logger.error('课程表文件格式错误：缺少 schedule_even 字段（双周）')
             else:
                 schedule = loaded_data.get('schedule')
+                if schedule is None:
+                    logger.error('课程表文件格式错误：缺少 schedule 字段（单周）')
         except Exception as e:
             logger.error(f'加载课程表文件[单双周]出错：{e}')
             schedule = loaded_data.get('schedule')
+            if schedule is None:
+                logger.error('课程表文件格式错误：缺少 schedule 字段（单周）')
     else:
         logger.info('获取单周课程')
         schedule = loaded_data.get('schedule')
+        if schedule is None:
+            logger.error('课程表文件格式错误：缺少 schedule 字段（单周）')
+
+    if schedule is None:
+        raise RuntimeError('课程表文件格式错误：字段缺少或有误')
+
     class_count = 0
     for item_name, item_time in timeline.items():
         if item_name.startswith('am') or item_name.startswith('aa'):
@@ -100,7 +144,7 @@ def get_current_lessons():  # 获取今日课程
 def get_countdown(toast=False):
     current_dt = dt.datetime.combine(today, dt.datetime.strptime(current_time, '%H:%M:%S').time())  # 当前时间
     return_text = []
-    if afternoon_st != 0 and current_dt > afternoon_st - dt.timedelta(minutes=30):
+    if afternoon_st is not None and current_dt > afternoon_st - dt.timedelta(minutes=30):
         c_time = afternoon_st + dt.timedelta(seconds=time_offset)  # 开始时间段
         if current_dt == c_time and toast:
             tip_toast.main(1)  # 上课
@@ -137,7 +181,7 @@ def get_countdown(toast=False):
             minute, sec = divmod(time_diff.seconds, 60)
             return_text = ['距离上课还有', f'{minute:02d}:{sec:02d}', 100]
     # 上午
-    elif morning_st != 0:
+    elif morning_st is not None:
         c_time = morning_st + dt.timedelta(seconds=time_offset)  # 复制 morning_st 时间
         if current_dt == c_time + dt.timedelta(seconds=time_offset) and toast:
             tip_toast.main(1)  # 上课
@@ -184,7 +228,7 @@ def get_next_lessons():
     next_lessons = []
     current_dt = dt.datetime.combine(today, dt.datetime.strptime(current_time, '%H:%M:%S').time())  # 当前时间
 
-    if afternoon_st != 0 and current_dt > afternoon_st - dt.timedelta(minutes=30):  # 提前30min获取下午课程
+    if afternoon_st is not None and current_dt > afternoon_st - dt.timedelta(minutes=30):  # 提前30min获取下午课程
         c_time = afternoon_st  # 开始时间段
         for item_name, item_time in timeline_data.items():
             if item_name.startswith('aa') or item_name.startswith('fa'):
@@ -192,7 +236,7 @@ def get_next_lessons():
                     if item_name.startswith('aa'):
                         next_lessons.append(current_lessons[item_name])
                 c_time += dt.timedelta(minutes=int(item_time))
-    elif morning_st != 0:
+    elif morning_st is not None:
         c_time = morning_st  # 开始时间段
         for item_name, item_time in timeline_data.items():
             if item_name.startswith('am') or item_name.startswith('fm'):
@@ -214,7 +258,7 @@ def get_next_lessons_text():
         for i in range(range_time):
             if range_time > 2:
                 if next_lessons[i] != '暂无课程':
-                    cache_text += f'{list.get_subject_abbreviation(next_lessons[i])}  '  # 获取课程简称
+                    cache_text += f'{presets.get_subject_abbreviation(next_lessons[i])}  '  # 获取课程简称
                 else:
                     cache_text += f'无  '
             else:
@@ -231,7 +275,7 @@ def get_current_state():
     current_dt = dt.datetime.combine(today, dt.datetime.strptime(current_time, '%H:%M:%S').time())  # 当前时间
     is_changed = False
     # 下午
-    if afternoon_st != 0 and current_dt > afternoon_st:
+    if afternoon_st is not None and current_dt > afternoon_st - dt.timedelta(minutes=30):
         c_time = afternoon_st + dt.timedelta(seconds=time_offset)  # 开始时间段
         for item_name, item_time in timeline_data.items():
             if item_name.startswith('aa') or item_name.startswith('fa'):
@@ -245,7 +289,7 @@ def get_current_state():
                         is_changed = True
                     break
     # 上午
-    elif morning_st != 0 and current_dt > morning_st:
+    elif morning_st is not None and current_dt > morning_st:
         c_time = morning_st + dt.timedelta(seconds=time_offset)  # 复制 afternoon_st 时间
         for item_name, item_time in timeline_data.items():
             if item_name.startswith('am') or item_name.startswith('fm'):
@@ -268,11 +312,13 @@ get_current_lessons()
 get_current_state()
 get_next_lessons()
 
+
 class DesktopWidget(QWidget):  # 主要小组件
+
     def __init__(self, path='widget-time.ui', pos=(100, 50), enable_tray=False):
         super().__init__()
         init_config()
-        uic.loadUi(f'ui/{theme}/{path}', self)
+        loadUi(path, theme, base_instance=self)
 
         setTheme(Theme.LIGHT)
         setThemeColor('#36ABCF')
@@ -280,11 +326,12 @@ class DesktopWidget(QWidget):  # 主要小组件
         self.exmenu = None
 
         # 设置窗口无边框和透明背景
-        if int(conf.read_conf('General', 'pin_on_top')):  # 置顶
-            self.setWindowFlags(
-                Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.Tool |
-                Qt.WindowType.WindowDoesNotAcceptFocus
-            )
+        pin_on_top_cfg = conf.read_conf('General', 'pin_on_top')
+        if pin_on_top_cfg is None or int(pin_on_top_cfg):  # 置顶
+            self.setWindowFlags(Qt.WindowType.FramelessWindowHint
+                                | Qt.WindowType.WindowStaysOnTopHint
+                                | Qt.WindowType.Tool
+                                | Qt.WindowType.WindowDoesNotAcceptFocus)
         else:
             self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool)
 
@@ -303,10 +350,8 @@ class DesktopWidget(QWidget):  # 主要小组件
             self.tray_icon.setToolTip('Class Widgets')
 
             self.tray_menu = QMenu()
-            self.tray_menu.addAction(
-                '恢复不透明度', lambda: conf.write_conf('General', 'transparent', '240'))
-            self.tray_menu.addAction(
-                '降低不透明度', lambda: conf.write_conf('General', 'transparent', '185'))
+            self.tray_menu.addAction('恢复不透明度', lambda: conf.write_conf('General', 'transparent', '240'))
+            self.tray_menu.addAction('降低不透明度', lambda: conf.write_conf('General', 'transparent', '185'))
             self.tray_menu.addAction('设置', self.open_settings)
             self.tray_menu.addAction('强制退出', lambda: sys.exit())
 
@@ -319,7 +364,7 @@ class DesktopWidget(QWidget):  # 主要小组件
             self.date_text = self.findChild(QLabel, 'date_text')
             self.date_text.setText(f'{today.year} 年 {today.month} 月')
             self.day_text = self.findChild(QLabel, 'day_text')
-            self.day_text.setText(f'{today.day}日  {list.week[today.weekday()]}')
+            self.day_text.setText(f'{today.day}日  {presets.week[today.weekday()]}')
 
         elif path == 'widget-countdown.ui':  # 活动倒计时
             self.countdown_progress_bar = self.findChild(QProgressBar, 'progressBar')
@@ -340,7 +385,6 @@ class DesktopWidget(QWidget):  # 主要小组件
         elif path == 'widget-countdown-custom.ui':  # 自定义倒计时
             self.custom_title = self.findChild(QLabel, 'countdown_custom_title')
             self.custom_countdown = self.findChild(QLabel, 'custom_countdown')
-
 
         # 设置窗口位置
         self.animate_window(pos)
@@ -385,7 +429,7 @@ class DesktopWidget(QWidget):  # 主要小组件
         self.animation = QPropertyAnimation(self, b"geometry")
         self.animation.setDuration(625)  # 持续时间
         self.animation.setStartValue(QRect(self.x(), self.y(), self.width(), self.height()))
-        self.animation.setEndValue(QRect(self.x(), -self.height()+40, self.width(), self.height()))
+        self.animation.setEndValue(QRect(self.x(), -self.height() + 40, self.width(), self.height()))
         self.animation.setEasingCurve(QEasingCurve.Type.InOutCirc)  # 设置动画效果
         self.animation.start()
 
@@ -393,7 +437,8 @@ class DesktopWidget(QWidget):  # 主要小组件
         self.animation = QPropertyAnimation(self, b"geometry")
         self.animation.setDuration(625)  # 持续时间
         self.animation.setStartValue(QRect(self.x(), self.y(), self.width(), self.height()))
-        self.animation.setEndValue(QRect(self.x(), int(conf.read_conf('General', 'margin')), self.width(), self.height()))
+        margin_cfg = conf.read_conf('General', 'margin')
+        self.animation.setEndValue(QRect(self.x(), int(margin_cfg or "10"), self.width(), self.height()))
         self.animation.setEasingCurve(QEasingCurve.Type.InOutCirc)  # 设置动画效果
         self.animation.start()
 
@@ -427,9 +472,9 @@ class DesktopWidget(QWidget):  # 主要小组件
 
         filename = conf.read_conf('General', 'schedule')
 
-        transparent = conf.read_conf('General', 'transparent')
+        transparent_cfg = conf.read_conf('General', 'transparent')
         bkg = self.findChild(QLabel, 'label')
-        bkg.setStyleSheet(f'background-color: rgba(242, 243, 245, {int(transparent)}); border-radius: 8px')  # 背景透明度
+        bkg.setStyleSheet(f'background-color: rgba(242, 243, 245, {int(transparent_cfg or "240")}); border-radius: 8px')  # 背景透明度
 
         if path != 'widget-current-activity.ui':  # 不是当前活动组件
             cd_list = get_countdown()
@@ -439,15 +484,13 @@ class DesktopWidget(QWidget):  # 主要小组件
         # 说实在这到底是怎么跑起来的
         if hasattr(self, 'day_text'):
             self.date_text.setText(f'{today.year} 年 {today.month} 月')
-            self.day_text.setText(f'{today.day} 日 {list.week[today.weekday()]}')
+            self.day_text.setText(f'{today.day} 日 {presets.week[today.weekday()]}')
         if hasattr(self, 'current_state_text'):
             # 实时活动
             self.current_state_text.setText(f'  {current_state}')
-            self.current_state_text.setIcon(QIcon(list.get_subject_icon(current_state)))
+            self.current_state_text.setIcon(QIcon(presets.get_subject_icon(current_state)))
             self.blur_effect.setBlurRadius(35)  # 模糊半径
-            self.blur_effect_label.setStyleSheet(
-                f'background-color: rgba{list.subject_color(current_state)}, {bkg_opacity});'
-            )
+            self.blur_effect_label.setStyleSheet(f'background-color: rgba{presets.subject_color(current_state)}, {bkg_opacity});')
             self.blur_effect_label.setGraphicsEffect(self.blur_effect)
         if hasattr(self, 'next_lesson_text'):
             self.nl_text.setText(get_next_lessons_text())
@@ -461,7 +504,7 @@ class DesktopWidget(QWidget):  # 主要小组件
             self.custom_countdown.setText(conf.get_custom_countdown())
 
     # 点击自动隐藏
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, a0):
         if conf.read_conf('Temp', 'hide') == '0':  # 置顶
             conf.write_conf('Temp', 'hide', '1')
         else:
@@ -489,28 +532,39 @@ if __name__ == '__main__':
     theme = 'default'
 
     # 获取屏幕横向分辨率
-    screen_geometry = app.primaryScreen().availableGeometry()
+    primary_screen = app.primaryScreen()
+    if primary_screen is None:
+        raise RuntimeError('No primary screen available.')
+
+    screen_geometry = primary_screen.availableGeometry()
     screen_width = screen_geometry.width()
 
-    widgets = list.get_widget_config()
+    widgets = presets.get_widget_config()
 
     # 所有组件窗口的宽度
     spacing = -5
-    total_width = sum((list.widget_width[key] for key in widgets), spacing * (len(widgets) - 1))
+    total_width = sum((presets.widget_width[key] for key in widgets), spacing * (len(widgets) - 1))
 
     start_x = int((screen_width - total_width) / 2)
-    start_y = int(conf.read_conf('General', 'margin'))
+    margin_cfg = conf.read_conf('General', 'margin')
+    start_y = int(margin_cfg or "10")
 
     def cal_start_width(num):
         width = 0
         for i in range(num):
-            width += list.widget_width[widgets[i]]
+            width += presets.widget_width[widgets[i]]
         return int(start_x + spacing * num + width)
 
     if conf.read_conf('Other', 'initialstartup') == '1':  # 首次启动
         try:
             conf.add_shortcut('ClassWidgets.exe', 'img/favicon.ico')
-            conf.add_shortcut_to_startmenu('ClassWidgets.exe', 'img/favicon.ico')
+
+            try:
+                conf.add_shortcut_to_startmenu('ClassWidgets.exe', 'img/favicon.ico')
+            except UnsupportedOperationPlatformError:
+                # not win32 platform, unsupported
+                logger.warning('Non-win32 platform detected, will not add shortcut to startmenu.')
+
             conf.write_conf('Other', 'initialstartup', '')
         except Exception as e:
             logger.error(f'添加快捷方式失败：{e}')

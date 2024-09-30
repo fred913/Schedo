@@ -1,0 +1,2 @@
+class UnsupportedOperationPlatformError(Exception):
+    pass

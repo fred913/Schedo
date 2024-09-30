@@ -1,13 +1,13 @@
+import configparser as config
 import json
 import os
-import configparser as config
-from shutil import copy
-
-from win32com.client import Dispatch
 from datetime import datetime
-from loguru import logger
 
-import list
+from loguru import logger
+from win32com.client import Dispatch
+
+import presets
+from exceptions import UnsupportedOperationPlatformError
 
 path = 'config.ini'
 conf = config.ConfigParser()
@@ -156,7 +156,15 @@ def add_shortcut_to_startmenu(file='', icon=''):
             icon_path = os.path.abspath(icon)  # 将相对路径转换为绝对路径
 
         # 获取开始菜单文件夹路径
-        menu_folder = os.path.join(os.getenv('APPDATA'), 'Microsoft', 'Windows', 'Start Menu', 'Programs')
+        appdata = os.getenv('APPDATA')
+        if appdata is None:
+            raise UnsupportedOperationPlatformError("APPDATA environment variable not found.")
+
+        menu_folder = os.path.join(appdata, 'Microsoft', 'Windows', 'Start Menu', 'Programs')
+
+        # Check if the menu folder exists
+        if not os.path.exists(menu_folder):
+            raise FileNotFoundError(f"The Start Menu Programs folder does not exist: {menu_folder}")
 
         # 快捷方式文件名（使用文件名或自定义名称）
         name = os.path.splitext(os.path.basename(file_path))[0]  # 使用文件名作为快捷方式名称
@@ -186,7 +194,11 @@ def add_shortcut(file='', icon=''):
             icon_path = os.path.abspath(icon)
 
         # 获取桌面文件夹路径
-        desktop_folder = os.path.join(os.environ['USERPROFILE'], 'Desktop')
+        userprofile = os.getenv('USERPROFILE')
+        if userprofile is None:
+            raise UnsupportedOperationPlatformError("USERPROFILE environment variable not found.")
+
+        desktop_folder = os.path.join(userprofile, 'Desktop')
 
         # 快捷方式文件名（使用文件名或自定义名称）
         name = os.path.splitext(os.path.basename(file_path))[0]  # 使用文件名作为快捷方式名称
@@ -215,7 +227,11 @@ def add_to_startup(file_path='', icon_path=''):  # 注册到开机启动
         icon_path = os.path.abspath(icon_path)  # 将相对路径转换为绝对路径
 
     # 获取启动文件夹路径
-    startup_folder = os.path.join(os.getenv('APPDATA'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup')
+    appdata = os.getenv('APPDATA')
+    if appdata is None:
+        raise UnsupportedOperationPlatformError("APPDATA environment variable not found.")
+
+    startup_folder = os.path.join(appdata, 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup')
 
     # 快捷方式文件名（使用文件名或自定义名称）
     name = os.path.splitext(os.path.basename(file_path))[0]  # 使用文件名作为快捷方式名称
@@ -231,7 +247,11 @@ def add_to_startup(file_path='', icon_path=''):  # 注册到开机启动
 
 
 def remove_from_startup():
-    startup_folder = os.path.join(os.getenv('APPDATA'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup')
+    appdata = os.getenv('APPDATA')
+    if appdata is None:
+        raise UnsupportedOperationPlatformError("APPDATA environment variable not found.")
+
+    startup_folder = os.path.join(appdata, 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup')
     shortcut_path = os.path.join(startup_folder, f'{name}.lnk')
     if os.path.exists(shortcut_path):
         os.remove(shortcut_path)
@@ -262,8 +282,8 @@ def get_custom_countdown():  # 获取自定义倒计时
 
 
 def get_week_type():  # 获取单双周
-    if read_conf('Date', 'start_date') != '':
-        start_date = read_conf('Date', 'start_date')
+    start_date = read_conf('Date', 'start_date')
+    if start_date:
         start_date = datetime.strptime(start_date, '%Y-%m-%d')
         today = datetime.now()
         week_num = (today - start_date).days // 7 + 1
@@ -276,7 +296,7 @@ def get_week_type():  # 获取单双周
 
 
 def get_is_widget_in(widget='example.ui'):
-    widgets_list = list.get_widget_config()
+    widgets_list = presets.get_widget_config()
     if widget in widgets_list:
         return True
     else:
@@ -327,7 +347,6 @@ test_data_dict = {
         4: ['语文', '数学', '英语', '语文', '数学', '英语']
     }
 }
-
 
 if __name__ == '__main__':
     print('AL_1S')
