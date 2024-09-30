@@ -36,7 +36,7 @@
    </property>
    <property name="font">
     <font>
-     <family>Microsoft YaHei UI</family>
+     <family>Microsoft YaHei</family>
      <pointsize>14</pointsize>
      <weight>75</weight>
      <bold>true</bold>
@@ -67,7 +67,7 @@ font-weight: bold;</string>
    </property>
    <property name="font">
     <font>
-     <family>Microsoft YaHei UI</family>
+     <family>Microsoft YaHei</family>
      <pointsize>21</pointsize>
      <weight>75</weight>
      <bold>true</bold>

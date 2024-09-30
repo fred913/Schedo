@@ -36,6 +36,12 @@ schedule_dict = {}  # 对应时间线的课程表
 schedule_even_dict = {}  # 对应时间线的课程表（双周）
 
 
+def loadUi(ui_file: str, theme: str = "default"):
+    ui = uic.loadUi(f"ui/{theme}/{ui_file}")
+    assert ui is not None, f"Failed to load UI file: {ui_file}"
+    return ui
+
+
 class VersionThread(QThread):  # 获取最新版本号
     version_signal = pyqtSignal(str)
 
@@ -66,19 +72,19 @@ class desktop_widget(FluentWindow):
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         try:
             # 创建子页面
-            self.spInterface = uic.loadUi('menu-preview.ui')
+            self.spInterface = loadUi('menu-preview.ui')
             self.spInterface.setObjectName("spInterface")
-            self.teInterface = uic.loadUi('menu-timeline_edit.ui')  # 时间线编辑
+            self.teInterface = loadUi('menu-timeline_edit.ui')  # 时间线编辑
             self.teInterface.setObjectName("teInterface")
-            self.seInterface = uic.loadUi('menu-schedule_edit.ui')  # 课程表编辑
+            self.seInterface = loadUi('menu-schedule_edit.ui')  # 课程表编辑
             self.seInterface.setObjectName("seInterface")
-            self.adInterface = uic.loadUi('menu-advance.ui')
+            self.adInterface = loadUi('menu-advance.ui')
             self.adInterface.setObjectName("adInterface")
-            self.ifInterface = uic.loadUi('menu-about.ui')
+            self.ifInterface = loadUi('menu-about.ui')
             self.ifInterface.setObjectName("ifInterface")
-            self.ctInterface = uic.loadUi('menu-custom.ui')
+            self.ctInterface = loadUi('menu-custom.ui')
             self.ctInterface.setObjectName("ctInterface")
-            self.cfInterface = uic.loadUi('menu-configs.ui')
+            self.cfInterface = loadUi('menu-configs.ui')
             self.cfInterface.setObjectName("cfInterface")
 
             self.init_nav()
