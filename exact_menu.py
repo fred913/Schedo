@@ -1,5 +1,7 @@
 import datetime as dt
+import shutil
 import sys
+from pathlib import Path
 from shutil import copy
 
 from loguru import logger
@@ -14,9 +16,9 @@ from qfluentwidgets import (FluentWindow, Flyout, FlyoutAnimationType, Hyperlink
 import conf
 import menu
 import presets
-from utils import loadUi
+from globals import APP_NAME, CONFIG_DIR
+from utils import WeekType, get_week_type, loadUi, read_schedule_config
 
-filename = conf.read_conf('General', 'schedule')
 current_week = dt.datetime.today().weekday()
 temp_schedule = {'schedule': {}, 'schedule_even': {}}
 
@@ -29,6 +31,8 @@ class ExactMenu(FluentWindow):
         self.interface = loadUi('exact_menu.ui')
         self.initUI()
         self.init_interface()
+
+        self.filename: 'str | None' = None
 
     def init_interface(self):
         select_temp_week = self.findChild(ComboBox, 'select_temp_week')  # 选择替换日期
@@ -62,33 +66,52 @@ class ExactMenu(FluentWindow):
             self.menu.activateWindow()
 
     def load_schedule(self):
-        global filename
-        if conf.read_conf('Temp', 'temp_schedule') == '':
-            filename = conf.read_conf('General', 'schedule')
+        if not conf.CFG.temp.temp_schedule:
+            filename = conf.CFG.general.schedule
+            if filename is None:
+                raise FileNotFoundError(f"Failed to find schedule file {repr(filename)}")
         else:
             filename = 'backup.json'
 
-        data = conf.load_from_json(filename)
+        assert filename is not None
+        self.filename = filename
+
+        # data = conf.load_from_json(filename)
+        data = read_schedule_config(filename)
 
         if data is None:
             # file not found / format error
             raise RuntimeError(f"Failed to load schedule file: {filename}")
 
-        if conf.get_week_type():
+        elif not isinstance(data, dict):
+            # file format error
+            raise ValueError(f"Invalid schedule file format: {filename}; excepted a dict, got {type(data)}")
+
+        if get_week_type() == WeekType.DOUBLE:
             return data['schedule_even'][str(current_week)]
         else:
             return data['schedule'][str(current_week)]
 
     def save_temp_conf(self):
+        assert self.filename is not None
+        filename = self.filename
         try:
             temp_week = self.findChild(ComboBox, 'select_temp_week')
             if temp_schedule != {'schedule': {}, 'schedule_even': {}}:
-                if conf.read_conf('Temp', 'temp_schedule') == '':  # 备份检测
-                    copy(f'config/schedule/{filename}', f'config/schedule/backup.json')  # 备份课表配置
-                    logger.info(f'备份课表配置成功：已将 {filename} -备份至-> backup.json')
-                conf.write_conf('Temp', 'temp_schedule', filename)
-                conf.save_data_to_json(temp_schedule, filename)
-            conf.write_conf('Temp', 'set_week', str(temp_week.currentIndex()))
+                # if conf.read_conf('Temp', 'temp_schedule') == '':  # 备份检测
+                #     copy(f'config/schedule/{filename}', f'config/schedule/backup.json')  # 备份课表配置
+                #     logger.info(f'备份课表配置成功：已将 {filename} -备份至-> backup.json')
+                if conf.CFG.temp.temp_schedule:
+                    shutil.copy(CONFIG_DIR / 'schedule' / filename, CONFIG_DIR / 'schedule' / 'backup.json')
+                    logger.info(f'Made backup of schedule config: {filename} -> backup.json')
+                # conf.write_conf('Temp', 'temp_schedule', filename)
+                # conf.save_data_to_json(temp_schedule, filename)
+                conf.CFG.temp.temp_schedule = filename
+                conf.save()
+
+            # conf.write_conf('Temp', 'set_week', str(temp_week.currentIndex()))
+            conf.CFG.temp.set_week = str(temp_week.currentIndex())
+            conf.save()
             Flyout.create(icon=InfoBarIcon.SUCCESS,
                           title='保存成功',
                           content=f"已保存至 ./config.ini \n重启后失效。",
@@ -106,17 +129,24 @@ class ExactMenu(FluentWindow):
                           aniType=FlyoutAnimationType.PULL_UP)
 
     def refresh_schedule_list(self):
-        global current_week
         current_week = self.findChild(ComboBox, 'select_temp_week').currentIndex()
         tmp_schedule_list = self.findChild(ListWidget, 'schedule_list')  # 换课列表
         tmp_schedule_list.clear()
 
-        data = conf.load_from_json(filename)
+        assert self.filename is not None
+        filename = self.filename
+
+        # data = conf.load_from_json(filename)
+        data = read_schedule_config(filename)
         if data is None:
             # file not found / format error
             raise RuntimeError(f"Failed to load schedule list file: {filename}")
 
-        if conf.get_week_type():
+        elif not isinstance(data, dict):
+            # file format error
+            raise ValueError(f"Invalid schedule file format: {filename}; excepted a dict, got {type(data)}")
+
+        if get_week_type() == WeekType.DOUBLE:
             tmp_schedule_list.addItems(data['schedule_even'][str(current_week)])
         else:
             tmp_schedule_list.addItems(data['schedule'][str(current_week)])
@@ -134,7 +164,7 @@ class ExactMenu(FluentWindow):
             item_text = it.text()
             cache_list.append(item_text)
 
-        if conf.get_week_type():
+        if get_week_type():
             temp_schedule['schedule_even'][str(current_week)] = cache_list
         else:
             temp_schedule['schedule'][str(current_week)] = cache_list
@@ -164,7 +194,7 @@ class ExactMenu(FluentWindow):
         setTheme(Theme.AUTO)
 
         self.resize(1000, 700)
-        self.setWindowTitle('Class Widgets - 更多功能')
+        self.setWindowTitle(f'{APP_NAME} - 更多功能')
         self.setWindowIcon(QIcon('img/favicon-exmenu.ico'))
         self.move(int(screen_width / 2 - 500), 150)  # 窗体居中，但不完全居中
 

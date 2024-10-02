@@ -5,6 +5,7 @@ from shutil import copy
 from loguru import logger
 
 import conf
+from utils import update_schedule_config
 
 week = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 week_type = ['单周', '双周']
@@ -164,8 +165,10 @@ def import_schedule(filepath, filename):  # 导入课表
     # 保存文件
     try:
         copy(filepath, f'config/schedule/{filename}')
-        conf.save_data_to_json(check_data, filename)
-        conf.write_conf('General', 'schedule', filename)
+        update_schedule_config(check_data, filename)
+        # conf.write_conf('General', 'schedule', filename)
+        conf.CFG.general.schedule = filename
+        conf.save()
         return True
     except Exception as e:
         logger.error(f"保存数据时出错: {e}")
@@ -188,7 +191,8 @@ def get_widget_config():
             c = data
         return c['widgets']
     except Exception as e:
-        print(f'ReadWidgetConfigFAILD: {e}')
+        # print(f'ReadWidgetConfigFAILD: {e}')
+        logger.error(f'Read widget config failed: {e}')
         return default_widgets
 
 

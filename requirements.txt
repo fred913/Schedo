@@ -3,9 +3,11 @@ charset-normalizer==3.3.2
 colorama==0.4.6
 configparser==7.0.0
 darkdetect==0.8.0
+eval-type-backport==0.2.0
 idna==3.10
 loguru==0.7.2
 playsound==1.2.2
+pydantic==2.9.2
 pyqt6==6.7.1
 pyqt6-fluent-widgets==1.6.2
 pyqt6-frameless-window==0.4.3

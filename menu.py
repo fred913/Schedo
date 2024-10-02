@@ -7,7 +7,7 @@ import requests
 from loguru import logger
 from PyQt6.QtCore import QDate, Qt, QThread, QTime, QUrl, pyqtSignal
 from PyQt6.QtGui import QDesktopServices, QIcon, QPixmap
-from PyQt6.QtWidgets import QApplication, QFileDialog, QHBoxLayout, QHeaderView, QLabel, QSizePolicy, QSpacerItem, QTableWidgetItem
+from PyQt6.QtWidgets import QApplication, QFileDialog, QHBoxLayout, QHeaderView, QLabel, QSizePolicy, QSpacerItem, QTableWidgetItem, QWidget
 from qfluentwidgets import BodyLabel, CalendarPicker, CaptionLabel, ComboBox
 from qfluentwidgets import FluentIcon as fIcon
 from qfluentwidgets import (FluentWindow, Flyout, FlyoutAnimationType, InfoBarIcon, LineEdit, ListWidget, MessageBox, NavigationItemPosition,
@@ -15,7 +15,9 @@ from qfluentwidgets import (FluentWindow, Flyout, FlyoutAnimationType, InfoBarIc
 
 import conf
 import presets
-from utils import loadUi
+from globals import APP_NAME
+from utils import (add_to_startup, assert_not_none, check_if_widget_included, loadUi, read_schedule_config, remove_from_startup, update_schedule_config,
+                   update_widget_config)
 
 today = dt.date.today()
 
@@ -27,7 +29,8 @@ afternoon_st = 0
 
 current_week = 0
 
-filename = conf.read_conf('General', 'schedule')
+# filename = conf.read_conf('General', 'schedule')
+filename = conf.CFG.general.schedule
 
 schedule_dict = {}  # 对应时间线的课程表
 schedule_even_dict = {}  # 对应时间线的课程表（双周）
@@ -112,24 +115,39 @@ class desktop_widget(FluentWindow):
         widgets_list.addItems((presets.widget_name[key] for key in presets.get_widget_config()))
 
         switch_countdown_custom = self.findChild(SwitchButton, 'switch_countdown_custom')
-        switch_countdown_custom.setChecked(conf.get_is_widget_in('widget-countdown-custom.ui'))
+        switch_countdown_custom.setChecked(check_if_widget_included('widget-countdown-custom.ui'))
         switch_countdown_custom.checkedChanged.connect(self.switch_countdown_custom)
 
         save_config_button = self.findChild(PrimaryPushButton, 'save_config')
         save_config_button.clicked.connect(self.ct_save_widget_config)
 
         set_wcc_title = self.findChild(LineEdit, 'set_wcc_title')  # 倒计时标题
-        set_wcc_title.setText(conf.read_conf('Date', 'cd_text_custom'))
-        set_wcc_title.textChanged.connect(lambda: conf.write_conf('Date', 'cd_text_custom', set_wcc_title.text()))
+        # set_wcc_title.setText(conf.read_conf('Date', 'cd_text_custom'))
+        # set_wcc_title.textChanged.connect(lambda: conf.write_conf('Date', 'cd_text_custom', set_wcc_title.text()))
+        set_wcc_title.setText(conf.CFG.date.cd_text_custom)
+
+        def _save_wcc_title():
+            conf.CFG.date.cd_text_custom = set_wcc_title.text()
+            conf.save()
+
+        set_wcc_title.textChanged.connect(_save_wcc_title)
 
         set_countdown_date = self.findChild(CalendarPicker, 'set_countdown_date')  # 倒计时日期
-        if conf.read_conf('Date', 'countdown_date') != '':
-            set_countdown_date.setDate(QDate.fromString(conf.read_conf('Date', 'countdown_date'), 'yyyy-M-d'))
-        set_countdown_date.dateChanged.connect(lambda: conf.write_conf('Date', 'countdown_date', set_countdown_date.date.toString('yyyy-M-d')))
+        # if conf.read_conf('Date', 'countdown_date') != '':
+        #     set_countdown_date.setDate(QDate.fromString(conf.read_conf('Date', 'countdown_date'), 'yyyy-M-d'))
+        # set_countdown_date.dateChanged.connect(lambda: conf.write_conf('Date', 'countdown_date', set_countdown_date.date.toString('yyyy-M-d')))
+        if conf.CFG.date.countdown_date:
+            set_countdown_date.setDate(QDate.fromString(conf.CFG.date.countdown_date, 'yyyy-M-d'))
+
+        def _save_countdown_date():
+            conf.CFG.date.countdown_date = set_countdown_date.date.toString('yyyy-M-d')
+            conf.save()
+
+        set_countdown_date.dateChanged.connect(_save_countdown_date)
 
     def setup_about_interface(self):
         self.version = self.findChild(BodyLabel, 'version')
-        self.version.setText(f'当前版本：{conf.read_conf("Other", "version")}\n正在检查最新版本…')
+        self.version.setText(f'当前版本：{conf.CFG.other.version}\n正在检查最新版本…')
 
         self.version_thread = VersionThread()
         self.version_thread.version_signal.connect(self.ab_check_update)
@@ -143,12 +161,20 @@ class desktop_widget(FluentWindow):
 
     def setup_advance_interface(self):
         margin_spin = self.findChild(SpinBox, 'margin_spin')
-        margin_spin.setValue(int(conf.read_conf('General', 'margin')))
-        margin_spin.valueChanged.connect(lambda: conf.write_conf('General', 'margin', str(margin_spin.value())))  # 保存边距设定
+        # margin_spin.setValue(int(conf.read_conf('General', 'margin')))
+        # margin_spin.valueChanged.connect(lambda: conf.write_conf('General', 'margin', str(margin_spin.value())))  # 保存边距设定
+        margin_spin.setValue(int(conf.CFG.general.margin))
+
+        def _save_margin():
+            conf.CFG.general.margin = margin_spin.value()
+            conf.save()
+
+        margin_spin.valueChanged.connect(_save_margin)
 
         conf_combo = self.findChild(ComboBox, 'conf_combo')
         conf_combo.addItems(presets.get_schedule_config())
-        conf_combo.setCurrentIndex(presets.get_schedule_config().index(conf.read_conf('General', 'schedule')))
+        # conf_combo.setCurrentIndex(presets.get_schedule_config().index(conf.read_conf('General', 'schedule')))
+        conf_combo.setCurrentIndex(presets.get_schedule_config().index(conf.CFG.general.schedule))
         conf_combo.currentIndexChanged.connect(self.ad_change_file)  # 切换配置文件
 
         conf_name = self.findChild(LineEdit, 'conf_name')
@@ -156,37 +182,58 @@ class desktop_widget(FluentWindow):
         conf_name.textChanged.connect(self.ad_change_file_name)
 
         switch_pin_button = self.findChild(SwitchButton, 'switch_pin_button')
-        switch_pin_button.setChecked(int(conf.read_conf('General', 'pin_on_top')))
+        # switch_pin_button.setChecked(int(conf.read_conf('General', 'pin_on_top')))
+        switch_pin_button.setChecked(conf.CFG.general.pin_on_top)
         switch_pin_button.checkedChanged.connect(self.switch_pin)  # 置顶开关
 
         switch_startup = self.findChild(SwitchButton, 'switch_startup')
-        switch_startup.setChecked(int(conf.read_conf('General', 'auto_startup')))
+        # switch_startup.setChecked(int(conf.read_conf('General', 'auto_startup')))
+        switch_startup.setChecked(conf.CFG.general.auto_startup)
         switch_startup.checkedChanged.connect(self.switch_startup)  # 开机自启
 
         switch_auto_hide = self.findChild(SwitchButton, 'switch_auto_hide')
-        switch_auto_hide.setChecked(int(conf.read_conf('General', 'auto_hide')))
+        # switch_auto_hide.setChecked(int(conf.read_conf('General', 'auto_hide')))
+        switch_auto_hide.setChecked(conf.CFG.general.auto_hide)
         switch_auto_hide.checkedChanged.connect(self.switch_auto_hide)  # 自动隐藏
 
         switch_enable_toast = self.findChild(SwitchButton, 'switch_enable_toast')
-        switch_enable_toast.setChecked(int(conf.read_conf('General', 'enable_toast')))
+        # switch_enable_toast.setChecked(int(conf.read_conf('General', 'enable_toast')))
+        switch_enable_toast.setChecked(conf.CFG.general.enable_toast)
         switch_enable_toast.checkedChanged.connect(self.switch_enable_toast)  # 通知开关
 
         switch_enable_alt_schedule = self.findChild(SwitchButton, 'switch_enable_alt_schedule')
-        switch_enable_alt_schedule.setChecked(int(conf.read_conf('General', 'enable_alt_schedule')))
+        # switch_enable_alt_schedule.setChecked(int(conf.read_conf('General', 'enable_alt_schedule')))
+        switch_enable_alt_schedule.setChecked(conf.CFG.general.enable_alt_schedule)
         switch_enable_alt_schedule.checkedChanged.connect(self.switch_enable_alt_schedule)  # 单双周开关
 
         switch_enable_multiple_programs = self.findChild(SwitchButton, 'switch_multiple_programs')
-        switch_enable_multiple_programs.setChecked(int(conf.read_conf('Other', 'multiple_programs')))
+        # switch_enable_multiple_programs.setChecked(int(conf.read_conf('Other', 'multiple_programs')))
+        switch_enable_multiple_programs.setChecked(conf.CFG.other.multiple_programs)
         switch_enable_multiple_programs.checkedChanged.connect(self.switch_enable_multiple_programs)  # 多开
 
         set_start_date = self.findChild(CalendarPicker, 'set_start_date')  # 倒计时日期
-        if conf.read_conf('Date', 'start_date') != '':
-            set_start_date.setDate(QDate.fromString(conf.read_conf('Date', 'start_date'), 'yyyy-M-d'))
-        set_start_date.dateChanged.connect(lambda: conf.write_conf('Date', 'start_date', set_start_date.date.toString('yyyy-M-d')))  # 开学日期
+        # if conf.read_conf('Date', 'start_date') != '':
+        #     set_start_date.setDate(QDate.fromString(conf.read_conf('Date', 'start_date'), 'yyyy-M-d'))
+        # set_start_date.dateChanged.connect(lambda: conf.write_conf('Date', 'start_date', set_start_date.date.toString('yyyy-M-d')))  # 开学日期
+        if conf.CFG.date.start_date:
+            set_start_date.setDate(QDate.fromString(conf.CFG.date.start_date, 'yyyy-M-d'))
+
+        def _save_start_date():
+            conf.CFG.date.start_date = set_start_date.date.toString('yyyy-M-d')
+            conf.save()
+
+        set_start_date.dateChanged.connect(_save_start_date)
 
         offset_spin = self.findChild(SpinBox, 'offset_spin')
-        offset_spin.setValue(int(conf.read_conf('General', 'time_offset')))
-        offset_spin.valueChanged.connect(lambda: conf.write_conf('General', 'time_offset', str(offset_spin.value())))  # 保存时差偏移
+        # offset_spin.setValue(int(conf.read_conf('General', 'time_offset')))
+        # offset_spin.valueChanged.connect(lambda: conf.write_conf('General', 'time_offset', str(offset_spin.value())))  # 保存时差偏移
+        offset_spin.setValue(int(conf.CFG.general.time_offset))
+
+        def _save_offset():
+            conf.CFG.general.time_offset = offset_spin.value()
+            conf.save()
+
+        offset_spin.valueChanged.connect(_save_offset)
 
     def setup_schedule_edit(self):
         self.se_load_item()
@@ -252,7 +299,7 @@ class desktop_widget(FluentWindow):
 
     def setup_schedule_preview(self):
         schedule_view = self.findChild(TableWidget, 'schedule_view')
-        schedule_view.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)  # 使列表自动等宽
+        assert_not_none(schedule_view.horizontalHeader()).setSectionResizeMode(QHeaderView.ResizeMode.Stretch)  # 使列表自动等宽
 
         subtitle = self.findChild(SubtitleLabel, 'subtitle_file')
         subtitle.setText(f'预览  -  {filename[:-5]}')
@@ -265,39 +312,57 @@ class desktop_widget(FluentWindow):
         schedule_view.setColumnCount(7)
         schedule_view.setHorizontalHeaderLabels(presets.week[0:7])
         schedule_view.setBorderVisible(True)
-        schedule_view.verticalHeader().hide()
+        assert_not_none(schedule_view.verticalHeader()).hide()
         schedule_view.setBorderRadius(8)
         self.sp_fill_grid_row()
 
     def switch_pin(self):
         switch_pin_button = self.findChild(SwitchButton, 'switch_pin_button')
         if switch_pin_button.isChecked():
-            conf.write_conf('General', 'pin_on_top', '1')
+            conf.CFG.general.pin_on_top = True
         else:
-            conf.write_conf('General', 'pin_on_top', '0')
+            conf.CFG.general.pin_on_top = False
+        conf.save()
 
     def switch_startup(self):
         switch_startup = self.findChild(SwitchButton, 'switch_startup')
+        # if switch_startup.isChecked():
+        #     conf.write_conf('General', 'auto_startup', '1')
+        #     conf.add_to_startup('ClassWidgets.exe', 'img/favicon.ico')
+        # else:
+        #     conf.write_conf('General', 'auto_startup', '0')
+        #     conf.remove_from_startup()
         if switch_startup.isChecked():
-            conf.write_conf('General', 'auto_startup', '1')
-            conf.add_to_startup('ClassWidgets.exe', 'img/favicon.ico')
+            conf.CFG.general.auto_startup = True
+            add_to_startup('ClassWidgets.exe', 'img/favicon.ico')
         else:
-            conf.write_conf('General', 'auto_startup', '0')
-            conf.remove_from_startup()
+            conf.CFG.general.auto_startup = False
+            remove_from_startup()
+        conf.save()
 
     def switch_auto_hide(self):
         switch_auto_hide = self.findChild(SwitchButton, 'switch_auto_hide')
+        # if switch_auto_hide.isChecked():
+        #     conf.write_conf('General', 'auto_hide', '1')
+        # else:
+        #     conf.write_conf('General', 'auto_hide', '0')
         if switch_auto_hide.isChecked():
-            conf.write_conf('General', 'auto_hide', '1')
+            conf.CFG.general.auto_hide = True
         else:
-            conf.write_conf('General', 'auto_hide', '0')
+            conf.CFG.general.auto_hide = False
+        conf.save()
 
     def switch_enable_toast(self):
         switch_enable_toast = self.findChild(SwitchButton, 'switch_enable_toast')
+        # if switch_enable_toast.isChecked():
+        #     conf.write_conf('General', 'enable_toast', '1')
+        # else:
+        #     conf.write_conf('General', 'enable_toast', '0')
         if switch_enable_toast.isChecked():
-            conf.write_conf('General', 'enable_toast', '1')
+            conf.CFG.general.enable_toast = True
         else:
-            conf.write_conf('General', 'enable_toast', '0')
+            conf.CFG.general.enable_toast = False
+        conf.save()
 
     def switch_countdown_custom(self):
         widgets_list = self.findChild(ListWidget, 'widgets_list')
@@ -306,24 +371,34 @@ class desktop_widget(FluentWindow):
             widgets_list.addItem(presets.widget_name['widget-countdown-custom.ui'])
         else:
             target = presets.widget_name['widget-countdown-custom.ui']
-            items = [widgets_list.item(i).text() for i in range(widgets_list.count())]
+            items = [assert_not_none(widgets_list.item(i)).text() for i in range(widgets_list.count())]
             if target in items:
                 row_to_remove = items.index(target)
                 widgets_list.takeItem(row_to_remove)
 
     def switch_enable_alt_schedule(self):
         switch_enable_alt_schedule = self.findChild(SwitchButton, 'switch_enable_alt_schedule')
+        # if switch_enable_alt_schedule.isChecked():
+        #     conf.write_conf('General', 'enable_alt_schedule', '1')
+        # else:
+        #     conf.write_conf('General', 'enable_alt_schedule', '0')
         if switch_enable_alt_schedule.isChecked():
-            conf.write_conf('General', 'enable_alt_schedule', '1')
+            conf.CFG.general.enable_alt_schedule = True
         else:
-            conf.write_conf('General', 'enable_alt_schedule', '0')
+            conf.CFG.general.enable_alt_schedule = False
+        conf.save()
 
     def switch_enable_multiple_programs(self):
         switch_enable_multiple_programs = self.findChild(SwitchButton, 'switch_multiple_programs')
+        # if switch_enable_multiple_programs.isChecked():
+        #     conf.write_conf('Other', 'multiple_programs', '1')
+        # else:
+        #     conf.write_conf('Other', 'multiple_programs', '0')
         if switch_enable_multiple_programs.isChecked():
-            conf.write_conf('Other', 'multiple_programs', '1')
+            conf.CFG.other.multiple_programs = True
         else:
-            conf.write_conf('Other', 'multiple_programs', '0')
+            conf.CFG.other.multiple_programs = False
+        conf.save()
 
     def cf_export_schedule(self):  # 导出课程表
         file_path, _ = QFileDialog.getSaveFileName(self, "保存文件", filename, "Json 配置文件 (*.json)")
@@ -344,10 +419,14 @@ class desktop_widget(FluentWindow):
                     return 0
 
     def ab_check_update(self, version):  # 检查更新
-        if version == conf.read_conf("Other", "version"):
+        # if version == conf.read_conf("Other", "version"):
+        #     self.version.setText(f'当前版本：{version}\n当前为最新版本')
+        # else:
+        #     self.version.setText(f'当前版本：{conf.read_conf("Other", "version")}\n最新版本：{version}')
+        if version == conf.CFG.other.version:
             self.version.setText(f'当前版本：{version}\n当前为最新版本')
         else:
-            self.version.setText(f'当前版本：{conf.read_conf("Other", "version")}\n最新版本：{version}')
+            self.version.setText(f'当前版本：{conf.CFG.other.version}\n最新版本：{version}')
 
     def cf_import_schedule(self):  # 导入课程表
         file_path, _ = QFileDialog.getOpenFileName(self, "选择文件", "", "Json 配置文件 (*.json)")
@@ -363,7 +442,7 @@ class desktop_widget(FluentWindow):
             else:
                 print('导入失败！')
                 alert = MessageBox('导入失败！', '课程表文件导入失败！\n'
-                                   '可能为格式错误或文件损坏，请检查此文件是否为 Class Widgets 课程表文件。\n'
+                                   f'可能为格式错误或文件损坏，请检查此文件是否为 {APP_NAME} 课程表文件。\n'
                                    '详情请查看Log日志，日志位于./log/下。', self)
                 alert.cancelButton.hide()  # 隐藏取消按钮
                 alert.buttonLayout.insertStretch(0, 1)
@@ -374,8 +453,8 @@ class desktop_widget(FluentWindow):
         widgets_list = self.findChild(ListWidget, 'widgets_list')
         widget_config = {'widgets': []}
         for i in range(widgets_list.count()):
-            widget_config['widgets'].append(presets.widget_conf[widgets_list.item(i).text()])
-        if conf.save_widget_conf_to_json(widget_config):
+            widget_config['widgets'].append(presets.widget_conf[assert_not_none(widgets_list.item(i)).text()])
+        if update_widget_config(widget_config):
             self.ct_update_preview()
             Flyout.create(icon=InfoBarIcon.SUCCESS,
                           title='保存成功',
@@ -400,16 +479,18 @@ class desktop_widget(FluentWindow):
 
             left_spacer = QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
             widgets_preview.addItem(left_spacer)
+            widget_instances: 'list[QWidget]' = []
             for i in range(len(widget_config)):
                 widget_name = widget_config[i]
                 label = QLabel()
                 label.setPixmap(QPixmap(f'img/settings/{widget_name[:-3]}.png'))
+                # widget_instances[i] = label
                 widgets_preview.addWidget(label)
-                widget_config[i] = label
+                widget_instances.append(label)  # i really dont know where this is used
+
             right_spacer = QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
             widgets_preview.addItem(right_spacer)
         except Exception as e:
-            print(f'更新预览界面时发生错误：{e}')
             logger.error(f'更新预览界面时发生错误：{e}')
 
     def ad_change_file_name(self):
@@ -419,10 +500,11 @@ class desktop_widget(FluentWindow):
             old_name = filename
             new_name = conf_name.text()
             os.rename(f'config/schedule/{old_name}', f'config/schedule/{new_name}.json')  # 重命名
-            conf.write_conf('General', 'schedule', f'{new_name}.json')
+            # conf.write_conf('General', 'schedule', f'{new_name}.json')
+            conf.CFG.general.schedule = f'{new_name}.json'
+            conf.save()
             filename = new_name + '.json'
         except Exception as e:
-            print(f'修改配置文件名称时发生错误：{e}')
             logger.error(f'修改配置文件名称时发生错误：{e}')
 
     def ad_change_file(self):
@@ -432,10 +514,14 @@ class desktop_widget(FluentWindow):
             if conf_combo.currentText() == '添加新课表':
                 new_name = f'新课表 - {presets.return_default_schedule_number() + 1}'
                 presets.create_new_profile(f'{new_name}.json')
-                conf.write_conf('General', 'schedule', f'{new_name}.json')
+                # conf.write_conf('General', 'schedule', f'{new_name}.json')
+                conf.CFG.general.schedule = f'{new_name}.json'
+                conf.save()
             else:
                 if conf_combo.currentText().endswith('.json'):
-                    conf.write_conf('General', 'schedule', conf_combo.currentText())
+                    # conf.write_conf('General', 'schedule', conf_combo.currentText())
+                    conf.CFG.general.schedule = conf_combo.currentText()
+                    conf.save()
         except Exception as e:
             print(f'切换配置文件时发生错误：{e}')
             logger.error(f'切换配置文件时发生错误：{e}')
@@ -445,7 +531,8 @@ class desktop_widget(FluentWindow):
         alert.buttonLayout.insertStretch(0, 1)
         if alert.exec():
             global filename
-            filename = conf.read_conf('General', 'schedule')
+            # filename = conf.read_conf('General', 'schedule')
+            filename = conf.CFG.general.schedule
             self.close()
 
     def sp_fill_grid_row(self):  # 填充预览表格
@@ -469,8 +556,11 @@ class desktop_widget(FluentWindow):
     # 加载时间线
     def te_load_item(self, file=filename):
         global morning_st, afternoon_st
-        loaded_data = conf.load_from_json(file)
-        timeline = loaded_data.get('timeline')
+        # loaded_data = conf.load_from_json(file)
+        schedule_data = read_schedule_config(file)
+        assert schedule_data is not None, 'Schedule load failed'
+        timeline = schedule_data.get('timeline')
+        assert timeline is not None, 'Timeline load failed'
         # 找控件
         te_m_start_time = self.findChild(TimePicker, 'morningStartTime')
         te_a_start_time = self.findChild(TimePicker, 'afternoonStartTime')
@@ -515,11 +605,17 @@ class desktop_widget(FluentWindow):
     def se_load_item(self, file=filename):
         global schedule_dict
         global schedule_even_dict
-        loaded_data = conf.load_from_json(file)
-        loaded_data_timeline = conf.load_from_json(file)
+        # loaded_data = conf.load_from_json(file)
+        # loaded_data_timeline = conf.load_from_json(file)
+        loaded_data = read_schedule_config(file)
+        assert loaded_data is not None, 'Schedule load failed'
+        loaded_data_timeline = loaded_data.copy()
         timeline = loaded_data_timeline.get('timeline')
         schedule = loaded_data.get('schedule')
         schedule_even = loaded_data.get('schedule_even')
+        assert timeline is not None, 'Timeline load failed'
+        assert schedule is not None, 'Schedule load failed'
+        assert schedule_even is not None, 'Schedule even load failed'
         for week, item in schedule.items():
             all_class = []
             morning_count = 0
@@ -603,7 +699,7 @@ class desktop_widget(FluentWindow):
             try:
                 cache_list = []
                 for i in range(se_schedule_list.count()):
-                    item_text = se_schedule_list.item(i).text()
+                    item_text = assert_not_none(se_schedule_list.item(i)).text()
                     cache_list.append(item_text)
                 schedule_even_dict[str(current_week)][:] = cache_list
             except Exception as e:
@@ -612,7 +708,7 @@ class desktop_widget(FluentWindow):
             global schedule_dict
             cache_list = []
             for i in range(se_schedule_list.count()):
-                item_text = se_schedule_list.item(i).text()
+                item_text = assert_not_none(se_schedule_list.item(i)).text()
                 cache_list.append(item_text)
             schedule_dict[str(current_week)][:] = cache_list
 
@@ -637,9 +733,9 @@ class desktop_widget(FluentWindow):
                 data_dict_even[str(week)] = replace_list
             # 写入
             data_dict_even = {"schedule_even": data_dict_even}
-            conf.save_data_to_json(data_dict_even, filename)
+            update_schedule_config(data_dict_even, filename)
             data_dict = {"schedule": data_dict}
-            conf.save_data_to_json(data_dict, filename)
+            update_schedule_config(data_dict, filename)
             Flyout.create(icon=InfoBarIcon.SUCCESS,
                           title='保存成功',
                           content=f"已保存至 ./config/schedule/{filename}",
@@ -662,7 +758,7 @@ class desktop_widget(FluentWindow):
         m = 0
         counter = 0
         for i in range(te_timeline_list.count()):
-            item_text = te_timeline_list.item(i).text()
+            item_text = assert_not_none(te_timeline_list.item(i)).text()
             item_info = item_text.split('-')
             item_name = ''
             if item_info[0] == '课程/活动':
@@ -681,7 +777,7 @@ class desktop_widget(FluentWindow):
             # 修复 3 位数保存 Bug
             item_time = item_info[1][0:len(item_info[1]) - 2]
             data_dict['timeline'][item_name] = item_time
-        conf.save_data_to_json(data_dict, file)
+        update_schedule_config(data_dict, file)
         self.se_load_item()
         self.se_upload_list()
         self.sp_fill_grid_row()
@@ -792,24 +888,26 @@ class desktop_widget(FluentWindow):
         self.setMinimumHeight(500)
         self.navigationInterface.setExpandWidth(250)
         self.navigationInterface.setCollapsible(False)
-        screen_geometry = QApplication.primaryScreen().geometry()
+        screen_geometry = assert_not_none(QApplication.primaryScreen()).geometry()
         screen_width = screen_geometry.width()
 
         setTheme(Theme.AUTO)
 
         self.move(int(screen_width / 2 - width / 2), 150)
-        self.setWindowTitle('Class Widgets - 设置')
+        self.setWindowTitle(f'{APP_NAME} - 设置')
         self.setWindowIcon(QIcon('img/favicon-settings.ico'))
 
-    def closeEvent(self, event):
-        event.ignore()
+    def closeEvent(self, e):
+        e.ignore()
         self.hide()
 
 
 def sp_get_class_num():
     file = filename
-    loaded_data_timeline = conf.load_from_json(file)
+    loaded_data_timeline = read_schedule_config(file)
+    assert loaded_data_timeline is not None, 'Timeline load failed: file not found or invaild format'
     timeline = loaded_data_timeline.get('timeline')
+    assert timeline is not None, 'Timeline load failed'
     count = 0
     for item_name, item_time in timeline.items():
         if item_name.startswith('a'):

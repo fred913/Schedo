@@ -14,11 +14,14 @@ import exact_menu
 import menu
 import presets
 import tip_toast
+import utils
 from exceptions import UnsupportedOperationPlatformError
-from utils import loadUi
+from globals import APP_NAME, CONFIG_DIR
+from utils import (CountdownData, WeekType, add_shortcut, add_shortcut_to_startmenu, get_time_offset, get_week_type, is_temp_week, loadUi,
+                   read_countdown_config, read_schedule_config)
 
 today = dt.date.today()
-filename = conf.read_conf('General', 'schedule')
+filename = conf.CFG.general.schedule
 
 # 存储窗口对象
 windows = []
@@ -42,7 +45,7 @@ def get_start_time():
     global morning_st, afternoon_st, timeline_data
     morning_st = None
     afternoon_st = None
-    loaded_data = conf.load_from_json(filename)
+    loaded_data = read_schedule_config(filename)
     if loaded_data is None:
         logger.error('加载课程表文件失败: 不符合 JSON 格式规范或文件不存在')
         return
@@ -76,7 +79,7 @@ def get_start_time():
 # 获取当前活动
 def get_current_lessons():  # 获取今日课程
     global current_lessons
-    loaded_data = conf.load_from_json(filename)
+    loaded_data = read_schedule_config(filename)
 
     if loaded_data is None:
         logger.error('加载课程表文件失败: 不符合 JSON 格式规范或文件不存在')
@@ -96,9 +99,11 @@ def get_current_lessons():  # 获取今日课程
         logger.error('课程表文件格式错误：timeline 字段应当是一个字典')
         return
 
-    if conf.read_conf('General', 'enable_alt_schedule') == '1':
+    # if conf.read_conf('General', 'enable_alt_schedule') == '1':
+    if conf.CFG.general.enable_alt_schedule:
         try:
-            if conf.get_week_type():
+            # if conf.get_week_type():
+            if get_week_type() == WeekType.DOUBLE:
                 schedule = loaded_data.get('schedule_even')
                 if schedule is None:
                     logger.error('课程表文件格式错误：缺少 schedule_even 字段（双周）')
@@ -326,7 +331,7 @@ class DesktopWidget(QWidget):  # 主要小组件
         self.exmenu = None
 
         # 设置窗口无边框和透明背景
-        pin_on_top_cfg = conf.read_conf('General', 'pin_on_top')
+        pin_on_top_cfg = conf.CFG.general.pin_on_top
         if pin_on_top_cfg is None or int(pin_on_top_cfg):  # 置顶
             self.setWindowFlags(Qt.WindowType.FramelessWindowHint
                                 | Qt.WindowType.WindowStaysOnTopHint
@@ -347,11 +352,24 @@ class DesktopWidget(QWidget):  # 主要小组件
 
         if enable_tray:  # 托盘图标
             self.tray_icon = QSystemTrayIcon(QIcon("img/favicon.png"), self)
-            self.tray_icon.setToolTip('Class Widgets')
+            self.tray_icon.setToolTip(APP_NAME)
 
             self.tray_menu = QMenu()
-            self.tray_menu.addAction('恢复不透明度', lambda: conf.write_conf('General', 'transparent', '240'))
-            self.tray_menu.addAction('降低不透明度', lambda: conf.write_conf('General', 'transparent', '185'))
+
+            # self.tray_menu.addAction('恢复不透明度', lambda: conf.write_conf('General', 'transparent', '240'))
+            # self.tray_menu.addAction('降低不透明度', lambda: conf.write_conf('General', 'transparent', '185'))
+
+            def increase_opacity():
+                conf.CFG.general.transparent = 240
+                conf.save()
+
+            def decrease_opacity():
+                conf.CFG.general.transparent = 185
+                conf.save()
+
+            self.tray_menu.addAction('提高不透明度', increase_opacity)
+            self.tray_menu.addAction('降低不透明度', decrease_opacity)
+
             self.tray_menu.addAction('设置', self.open_settings)
             self.tray_menu.addAction('强制退出', lambda: sys.exit())
 
@@ -406,7 +424,7 @@ class DesktopWidget(QWidget):  # 主要小组件
             self.menu.activateWindow()
 
     def open_exact_menu(self):
-        if conf.read_conf('Temp', 'hide') != '1':  # 如果没有隐藏
+        if not conf.CFG.temp.hide:
             if self.exmenu is None or not self.exmenu.isVisible():  # 防多开
                 self.exmenu = exact_menu.ExactMenu()
                 self.exmenu.show()
@@ -414,7 +432,9 @@ class DesktopWidget(QWidget):  # 主要小组件
                 self.exmenu.raise_()
                 self.exmenu.activateWindow()
         else:
-            conf.write_conf('Temp', 'hide', '0')
+            # conf.write_conf('Temp', 'hide', '0')
+            conf.CFG.temp.hide = False
+            conf.save()
 
     def animate_window(self, target_pos):  # 窗口动画！
         # 创建位置动画
@@ -437,7 +457,7 @@ class DesktopWidget(QWidget):  # 主要小组件
         self.animation = QPropertyAnimation(self, b"geometry")
         self.animation.setDuration(625)  # 持续时间
         self.animation.setStartValue(QRect(self.x(), self.y(), self.width(), self.height()))
-        margin_cfg = conf.read_conf('General', 'margin')
+        margin_cfg = conf.CFG.general.margin
         self.animation.setEndValue(QRect(self.x(), int(margin_cfg or "10"), self.width(), self.height()))
         self.animation.setEasingCurve(QEasingCurve.Type.InOutCirc)  # 设置动画效果
         self.animation.start()
@@ -446,33 +466,36 @@ class DesktopWidget(QWidget):  # 主要小组件
         global current_time, current_week, filename, start_y, time_offset
 
         current_time = dt.datetime.now().strftime('%H:%M:%S')
-        filename = conf.read_conf('General', 'schedule')
-        time_offset = conf.get_time_offset()
+
+        filename = conf.CFG.general.schedule
+        time_offset = get_time_offset()
+
         get_start_time()
         get_current_lessons()
         get_current_state()
         get_next_lessons()
 
         if not first_setup:  # 如果不是初次启动
-            if conf.read_conf('General', 'auto_hide') != '0':  # 自动隐藏是否打开
+            if conf.CFG.general.auto_hide:  # 自动隐藏是否打开
                 if current_state == '课间' or current_state == '暂无课程':  # 上课时隐藏
                     self.animate_show()
                 else:
                     self.animate_auto_hide()
-            else:  # 手动隐藏
-                if conf.read_conf('Temp', 'hide') == '1':
+            else:
+                # 手动隐藏
+                if conf.CFG.temp.hide:
                     self.animate_auto_hide()
                 else:
                     self.animate_show()
 
-        if conf.is_temp_week():  # 调休日
-            current_week = conf.read_conf('Temp', 'set_week')
+        if is_temp_week():  # 调休日
+            current_week = conf.CFG.temp.set_week
         else:
             current_week = dt.datetime.now().weekday()
 
-        filename = conf.read_conf('General', 'schedule')
+        filename = conf.CFG.general.schedule
 
-        transparent_cfg = conf.read_conf('General', 'transparent')
+        transparent_cfg = conf.CFG.general.transparent
         bkg = self.findChild(QLabel, 'label')
         bkg.setStyleSheet(f'background-color: rgba(242, 243, 245, {int(transparent_cfg or "240")}); border-radius: 8px')  # 背景透明度
 
@@ -483,8 +506,8 @@ class DesktopWidget(QWidget):  # 主要小组件
 
         # 说实在这到底是怎么跑起来的
         if hasattr(self, 'day_text'):
-            self.date_text.setText(f'{today.year} 年 {today.month} 月')
-            self.day_text.setText(f'{today.day} 日 {presets.week[today.weekday()]}')
+            self.date_text.setText(f'{today.year} 年 {today.month} 月')
+            self.day_text.setText(f'{today.day} 日 {presets.week[today.weekday()]}')
         if hasattr(self, 'current_state_text'):
             # 实时活动
             self.current_state_text.setText(f'  {current_state}')
@@ -500,23 +523,46 @@ class DesktopWidget(QWidget):  # 主要小组件
                 self.ac_title.setText(cd_list[0])
                 self.countdown_progress_bar.setValue(cd_list[2])
         if hasattr(self, 'countdown_custom_title'):
-            self.custom_title.setText(f'距离 {conf.read_conf("Date", "cd_text_custom")} 还有')
-            self.custom_countdown.setText(conf.get_custom_countdown())
+            # self.custom_title.setText(f'距离 {conf.read_conf("Date", "cd_text_custom")} 还有')
+            # self.custom_countdown.setText(conf.get_custom_countdown())
+
+            cd_data = read_countdown_config()
+            if cd_data:
+                self.custom_title.setText(f'距离 {cd_data.label} 还有')
+                self.custom_countdown.setText(f"{cd_data.days} 天")
+            else:
+                self.custom_title.setText('未设置倒数日')
+                self.custom_countdown.setText('-')
 
     # 点击自动隐藏
     def mousePressEvent(self, a0):
-        if conf.read_conf('Temp', 'hide') == '0':  # 置顶
-            conf.write_conf('Temp', 'hide', '1')
-        else:
-            conf.write_conf('Temp', 'hide', '0')
+        # if conf.read_conf('Temp', 'hide') == '0':  # 置顶
+        #     conf.write_conf('Temp', 'hide', '1')
+        # else:
+        #     conf.write_conf('Temp', 'hide', '0')
+        # if conf.CFG.temp.hide:
+        #     conf.CFG.temp.hide = False
+        # else:
+        #     conf.CFG.temp.hide = True
+        conf.CFG.temp.hide = not conf.CFG.temp.hide
+        conf.save()
 
 
 def init_config():  # 重设配置文件
-    conf.write_conf('Temp', 'set_week', '')
-    conf.write_conf('Temp', 'hide', '0')
-    if conf.read_conf('Temp', 'temp_schedule') != '':  # 修复换课重置
-        copy('config/schedule/backup.json', f'config/schedule/{filename}')
-        conf.write_conf('Temp', 'temp_schedule', '')
+    # conf.write_conf('Temp', 'set_week', '')
+    # conf.write_conf('Temp', 'hide', '0')
+    # if conf.read_conf('Temp', 'temp_schedule') != '':  # 修复换课重置
+    #     copy('config/schedule/backup.json', f'config/schedule/{filename}')
+    #     conf.write_conf('Temp', 'temp_schedule', '')
+    conf.CFG.temp.set_week = ''
+    conf.CFG.temp.hide = False
+    conf.save()
+
+    if conf.CFG.temp.temp_schedule:  # 修复换课重置
+        # copy('config/schedule/backup.json', f'config/schedule/{filename}')
+        copy(CONFIG_DIR / 'schedule' / 'backup.json', CONFIG_DIR / 'schedule' / f'{filename}')
+        conf.CFG.temp.temp_schedule = ''
+        conf.save()
 
 
 def show_window(path, pos, enable_tray=False):
@@ -546,7 +592,7 @@ if __name__ == '__main__':
     total_width = sum((presets.widget_width[key] for key in widgets), spacing * (len(widgets) - 1))
 
     start_x = int((screen_width - total_width) / 2)
-    margin_cfg = conf.read_conf('General', 'margin')
+    margin_cfg = conf.CFG.general.margin
     start_y = int(margin_cfg or "10")
 
     def cal_start_width(num):
@@ -555,17 +601,18 @@ if __name__ == '__main__':
             width += presets.widget_width[widgets[i]]
         return int(start_x + spacing * num + width)
 
-    if conf.read_conf('Other', 'initialstartup') == '1':  # 首次启动
+    if conf.CFG.other.initialstartup == '1':  # 首次启动
         try:
-            conf.add_shortcut('ClassWidgets.exe', 'img/favicon.ico')
+            add_shortcut('ClassWidgets.exe', 'img/favicon.ico')
 
             try:
-                conf.add_shortcut_to_startmenu('ClassWidgets.exe', 'img/favicon.ico')
+                add_shortcut_to_startmenu('ClassWidgets.exe', 'img/favicon.ico')
             except UnsupportedOperationPlatformError:
                 # not win32 platform, unsupported
                 logger.warning('Non-win32 platform detected, will not add shortcut to startmenu.')
 
-            conf.write_conf('Other', 'initialstartup', '')
+            conf.CFG.other.initialstartup = ''
+            conf.save()  # this is really bullshit design; wait for further restructuring
         except Exception as e:
             logger.error(f'添加快捷方式失败：{e}')
 

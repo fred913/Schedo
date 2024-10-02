@@ -8,7 +8,7 @@ from qfluentwidgets import setThemeColor
 
 import conf
 import presets
-from utils import loadUi
+from utils import assert_not_none, loadUi
 
 attend_class = 'audio/attend_class.wav'
 finish_class = 'audio/finish_class.wav'
@@ -130,15 +130,17 @@ class tip_toast(QWidget):
 def main(state=1, lesson_name=''):
     global start_x, start_y, total_width
 
-    if conf.read_conf('General', 'enable_toast') == '1':
-        screen_geometry = QApplication.primaryScreen().geometry()
+    # if conf.read_conf('General', 'enable_toast') == '1':
+    if conf.CFG.general.enable_toast:
+        screen_geometry = assert_not_none(QApplication.primaryScreen()).geometry()
         screen_width = screen_geometry.width()
         spacing = -5
         widgets = presets.get_widget_config()
         total_width = total_width = sum((presets.widget_width[key] for key in widgets), spacing * (len(widgets) - 1))
 
         start_x = int((screen_width - total_width) / 2)
-        start_y = int(conf.read_conf('General', 'margin'))
+        # start_y = int(conf.read_conf('General', 'margin'))
+        start_y = conf.CFG.general.margin
 
         window = tip_toast((start_x, start_y), total_width, state, lesson_name)
         window.show()
