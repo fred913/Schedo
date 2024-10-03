@@ -8,12 +8,9 @@ idna==3.10
 loguru==0.7.2
 playsound==1.2.2
 pydantic==2.9.2
-pyqt6==6.7.1
-pyqt6-fluent-widgets==1.6.2
-pyqt6-frameless-window==0.4.3
-pyqt6-qt6==6.7.2
-pyqt6-sip==13.8.0
-pywin32==306
+pyqt6
+pyqt6-fluent-widgets
+pywin32==306; platform_system == "Windows"
 requests==2.32.3
 urllib3==2.2.3
-win32-setctime==1.1.0
+win32-setctime==1.1.0; platform_system == "Windows"

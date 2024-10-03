@@ -3,7 +3,6 @@ import sys
 from shutil import copy
 
 from loguru import logger
-from PyQt6 import uic
 from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, QRect, Qt, QTimer
 from PyQt6.QtGui import QColor, QIcon
 from PyQt6.QtWidgets import QApplication, QGraphicsBlurEffect, QGraphicsDropShadowEffect, QLabel, QMenu, QProgressBar, QPushButton, QSystemTrayIcon, QWidget
@@ -14,11 +13,10 @@ import exact_menu
 import menu
 import presets
 import tip_toast
-import utils
 from exceptions import UnsupportedOperationPlatformError
 from globals import APP_NAME, CONFIG_DIR
-from utils import (CountdownData, WeekType, add_shortcut, add_shortcut_to_startmenu, get_time_offset, get_week_type, is_temp_week, loadUi,
-                   read_countdown_config, read_schedule_config)
+from utils import (WeekType, add_shortcut, add_shortcut_to_startmenu, get_time_offset, get_week_type, is_temp_week, loadUi, read_countdown_config,
+                   read_schedule_config)
 
 today = dt.date.today()
 filename = conf.CFG.general.schedule

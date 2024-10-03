@@ -1,4 +1,3 @@
-import configparser as config
 import enum
 import json
 import os
@@ -16,7 +15,7 @@ from win32com.client.dynamic import CDispatch
 import presets
 from conf import CFG
 from exceptions import UnsupportedOperationPlatformError
-from globals import APP_NAME, SupportsJson
+from globals import APP_NAME
 
 
 def loadUi(ui_file: str, theme: str = "default", *, raw=False, base_instance: 'QObject | None' = None):

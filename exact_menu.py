@@ -1,8 +1,6 @@
 import datetime as dt
 import shutil
 import sys
-from pathlib import Path
-from shutil import copy
 
 from loguru import logger
 from PyQt6.QtCore import Qt
