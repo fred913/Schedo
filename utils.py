@@ -27,22 +27,37 @@ from globals import APP_NAME
 #         ui = uic.load_ui.loadUi(ui_file, baseinstance=base_instance)
 #     assert ui is not None, f"Failed to load UI file: {ui_file}"
 #     return ui
+# from .ui_about import Ui_Form as Ui_About
+# from .ui_advance import Ui_Form as Ui_Advance
+# from .ui_configs import Ui_Form as Ui_Configs
+# from .ui_countdown import Ui_Form as Ui_Countdown
+# from .ui_countdown_custom import Ui_Form as Ui_CountdownCustom
+# from .ui_current_activity import Ui_Form as Ui_CurrentActivity
+# from .ui_custom import Ui_Form as Ui_Custom
+# from .ui_next_activity import Ui_Form as Ui_NextActivity
+# from .ui_preview import Ui_Form as Ui_Preview
+# from .ui_schedule_edit import Ui_Form as Ui_ScheduleEdit
+# from .ui_time import Ui_Form as Ui_Time
+# from .ui_timeline_edit import Ui_Form as Ui_TimelineEdit
+# from .ui_toast_bar import Ui_Form as Ui_ToastBar
+# from .ui_weather import Ui_Form as Ui_Weather
+
 UI_MAPPING = {
     "exact_menu.ui": "ui_exact_menu.py",
-    "menu-about.ui": "ui_about.py",
-    "menu-advance.ui": "ui_advance.py",
-    "menu-configs.ui": "ui_configs.py",
-    "menu-custom.ui": "ui_custom.py",
-    "menu-preview.ui": "ui_preview.py",
-    "menu-schedule_edit.ui": "ui_schedule_edit.py",
-    "menu-timeline_edit.ui": "ui_timeline_edit.py",
-    "widget-countdown-custom.ui": "ui_countdown_custom.py",
-    "widget-countdown.ui": "ui_countdown.py",
-    "widget-current-activity.ui": "ui_current_activity.py",
-    "widget-next-activity.ui": "ui_next_activity.py",
-    "widget-time.ui": "ui_time.py",
-    "widget-toast-bar.ui": "ui_toast_bar.py",
-    "widget-weather.ui": "ui_weather.py"
+    "menu-about.ui": "Ui_About",
+    "menu-advance.ui": "Ui_Advance",
+    "menu-configs.ui": "Ui_Configs",
+    "menu-custom.ui": "Ui_Custom",
+    "menu-preview.ui": "Ui_Preview",
+    "menu-schedule_edit.ui": "Ui_ScheduleEdit",
+    "menu-timeline_edit.ui": "Ui_TimelineEdit",
+    "widget-countdown-custom.ui": "Ui_CountdownCustom",
+    "widget-countdown.ui": "Ui_Countdown",
+    "widget-current-activity.ui": "Ui_CurrentActivity",
+    "widget-next-activity.ui": "Ui_NextActivity",
+    "widget-time.ui": "Ui_Time",
+    "widget-toast-bar.ui": "Ui_ToastBar",
+    "widget-weather.ui": "Ui_Weather"
 }
 
 
@@ -55,7 +70,7 @@ def loadUi(ui_file: str, theme: str = "default", *, raw=False, base_instance: 'Q
         mod_name = mod_name[:-3]
     # mod = importlib(f"ui.{mod_name}", globals(), locals(), [f"ui.{theme}.{mod_name}.Ui_Form"], 0)
     # importlib
-    mod = getattr(ui_mod, f"{mod_name}")
+    ui = getattr(ui_mod, f"{mod_name}")
 
     # try:
     #     ui = getattr(mod, f"Ui_Form")(base_instance)
@@ -67,7 +82,7 @@ def loadUi(ui_file: str, theme: str = "default", *, raw=False, base_instance: 'Q
     #         ui.setupUi(base_instance)
     #     except (TypeError, AssertionError):
     #         ui.setupUi()
-    class TargetWidgetWithUi(QWidget, getattr(mod, f"Ui_Form")):
+    class TargetWidgetWithUi(QWidget, ui):
 
         def __init__(self, parent=None):
             super().__init__(parent)

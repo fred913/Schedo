@@ -1,14 +1,14 @@
-from .ui_about import *
-from .ui_advance import *
-from .ui_configs import *
-from .ui_countdown import *
-from .ui_countdown_custom import *
-from .ui_current_activity import *
-from .ui_custom import *
-from .ui_next_activity import *
-from .ui_preview import *
-from .ui_schedule_edit import *
-from .ui_time import *
-from .ui_timeline_edit import *
-from .ui_toast_bar import *
-from .ui_weather import *
+from .ui_about import Ui_Form as Ui_About
+from .ui_advance import Ui_Form as Ui_Advance
+from .ui_configs import Ui_Form as Ui_Configs
+from .ui_countdown import Ui_Form as Ui_Countdown
+from .ui_countdown_custom import Ui_Form as Ui_CountdownCustom
+from .ui_current_activity import Ui_Form as Ui_CurrentActivity
+from .ui_custom import Ui_Form as Ui_Custom
+from .ui_next_activity import Ui_Form as Ui_NextActivity
+from .ui_preview import Ui_Form as Ui_Preview
+from .ui_schedule_edit import Ui_Form as Ui_ScheduleEdit
+from .ui_time import Ui_Form as Ui_Time
+from .ui_timeline_edit import Ui_Form as Ui_TimelineEdit
+from .ui_toast_bar import Ui_Form as Ui_ToastBar
+from .ui_weather import Ui_Form as Ui_Weather

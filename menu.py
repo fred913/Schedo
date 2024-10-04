@@ -74,7 +74,7 @@ class desktop_widget(FluentWindow):
     def __init__(self):
         super().__init__()
         # 设置窗口无边框和透明背景
-        self.setWindowFlags(Qt.FramelessWindowHint)
+        # self.setWindowFlags(Qt.FramelessWindowHint)  # incompatible with QFluentWidgets
 
         # 创建子页面
         self.spInterface = loadUi('menu-preview.ui', base_instance=self)
