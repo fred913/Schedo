@@ -41,7 +41,6 @@ jobs:
       - name: Copy dependencies and resources
         run: |
           xcopy /E /I config .\dist\Class-Widgets\config
-          xcopy /E /I ui .\dist\Class-Widgets\ui
           xcopy /E /I img .\dist\Class-Widgets\img
           xcopy /E /I audio .\dist\Class-Widgets\audio
 

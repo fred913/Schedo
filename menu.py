@@ -2,16 +2,20 @@ import datetime as dt
 import os
 import sys
 from copy import deepcopy
+from typing import Type, cast
 
 import requests
 from loguru import logger
-from PyQt6.QtCore import QDate, Qt, QThread, QTime, QUrl, pyqtSignal
-from PyQt6.QtGui import QDesktopServices, QIcon, QPixmap
-from PyQt6.QtWidgets import QApplication, QFileDialog, QHBoxLayout, QHeaderView, QLabel, QSizePolicy, QSpacerItem, QTableWidgetItem, QWidget
+from PySide2.QtCore import QDate, Qt, QThread, QTime, QUrl
+from PySide2.QtCore import Signal as pyqtSignal
+from PySide2.QtCore import SignalInstance
+from PySide2.QtGui import QDesktopServices, QIcon, QPixmap
+from PySide2.QtWidgets import QApplication, QFileDialog, QHBoxLayout, QHeaderView, QLabel, QSizePolicy, QSpacerItem, QTableWidgetItem, QWidget
 from qfluentwidgets import BodyLabel, CalendarPicker, CaptionLabel, ComboBox
 from qfluentwidgets import FluentIcon as fIcon
 from qfluentwidgets import (FluentWindow, Flyout, FlyoutAnimationType, InfoBarIcon, LineEdit, ListWidget, MessageBox, NavigationItemPosition,
                             PrimaryPushButton, PushButton, SpinBox, SubtitleLabel, SwitchButton, TableWidget, Theme, TimePicker, ToolButton, setTheme)
+from typing_extensions import TypeVar
 
 import conf
 import presets
@@ -44,7 +48,7 @@ class VersionThread(QThread):  # 获取最新版本号
 
     def run(self):
         version = self.get_latest_version()
-        self.version_signal.emit(version)
+        cast(SignalInstance, self.version_signal).emit(version)
 
     def get_latest_version(self):
         url = "https://api.github.com/repos/RinLit-233-shiroko/Class-Widgets/releases/latest"
@@ -59,34 +63,37 @@ class VersionThread(QThread):  # 获取最新版本号
             return f"请求失败: {e}"
 
 
+T = TypeVar('T')
+
+
 class desktop_widget(FluentWindow):
+
+    def findChild(self, arg__1: Type[T], arg__2: str = ...) -> T:
+        return super().findChild(arg__1, arg__2)  # type: ignore
 
     def __init__(self):
         super().__init__()
         # 设置窗口无边框和透明背景
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
-        try:
-            # 创建子页面
-            self.spInterface = loadUi('menu-preview.ui')
-            self.spInterface.setObjectName("spInterface")
-            self.teInterface = loadUi('menu-timeline_edit.ui')  # 时间线编辑
-            self.teInterface.setObjectName("teInterface")
-            self.seInterface = loadUi('menu-schedule_edit.ui')  # 课程表编辑
-            self.seInterface.setObjectName("seInterface")
-            self.adInterface = loadUi('menu-advance.ui')
-            self.adInterface.setObjectName("adInterface")
-            self.ifInterface = loadUi('menu-about.ui')
-            self.ifInterface.setObjectName("ifInterface")
-            self.ctInterface = loadUi('menu-custom.ui')
-            self.ctInterface.setObjectName("ctInterface")
-            self.cfInterface = loadUi('menu-configs.ui')
-            self.cfInterface.setObjectName("cfInterface")
+        self.setWindowFlags(Qt.FramelessWindowHint)
 
-            self.init_nav()
-            self.init_window()
-        except Exception as e:
-            logger.error(f'初始化设置界面时发生错误：{e}')
-            print(f'初始化设置界面时发生错误：{e}')
+        # 创建子页面
+        self.spInterface = loadUi('menu-preview.ui', base_instance=self)
+        self.spInterface.setObjectName("spInterface")
+        self.teInterface = loadUi('menu-timeline_edit.ui', base_instance=self)
+        self.teInterface.setObjectName("teInterface")
+        self.seInterface = loadUi('menu-schedule_edit.ui', base_instance=self)
+        self.seInterface.setObjectName("seInterface")
+        self.adInterface = loadUi('menu-advance.ui', base_instance=self)
+        self.adInterface.setObjectName("adInterface")
+        self.ifInterface = loadUi('menu-about.ui', base_instance=self)
+        self.ifInterface.setObjectName("ifInterface")
+        self.ctInterface = loadUi('menu-custom.ui', base_instance=self)
+        self.ctInterface.setObjectName("ctInterface")
+        self.cfInterface = loadUi('menu-configs.ui', base_instance=self)
+        self.cfInterface.setObjectName("cfInterface")
+
+        self.init_nav()
+        self.init_window()
 
         self.setStyleSheet("""QLabel {
             font: 'Microsoft YaHei';
@@ -104,22 +111,24 @@ class desktop_widget(FluentWindow):
     # 初始化界面
     def setup_configs_interface(self):
         cf_import_schedule = self.findChild(PushButton, 'im_schedule')
-        cf_import_schedule.clicked.connect(self.cf_import_schedule)  # 导入课程表
+        cast(SignalInstance, cf_import_schedule.clicked).connect(self.cf_import_schedule)  # 导入课程表
         cf_export_schedule = self.findChild(PushButton, 'ex_schedule')
-        cf_export_schedule.clicked.connect(self.cf_export_schedule)  # 导出课程表
+        cast(SignalInstance, cf_export_schedule.clicked).connect(self.cf_export_schedule)  # 导出课程表
 
     def setup_customization_interface(self):
         self.ct_update_preview()
 
         widgets_list = self.findChild(ListWidget, 'widgets_list')
-        widgets_list.addItems((presets.widget_name[key] for key in presets.get_widget_config()))
+        # widgets_list.addItems((presets.widget_name[key] for key in presets.get_widget_config()))
+        for key in presets.get_widget_config():
+            widgets_list.addItem(presets.widget_name[key])
 
         switch_countdown_custom = self.findChild(SwitchButton, 'switch_countdown_custom')
         switch_countdown_custom.setChecked(check_if_widget_included('widget-countdown-custom.ui'))
-        switch_countdown_custom.checkedChanged.connect(self.switch_countdown_custom)
+        cast(SignalInstance, switch_countdown_custom.checkedChanged).connect(self.switch_countdown_custom)
 
         save_config_button = self.findChild(PrimaryPushButton, 'save_config')
-        save_config_button.clicked.connect(self.ct_save_widget_config)
+        cast(SignalInstance, save_config_button.clicked).connect(self.ct_save_widget_config)
 
         set_wcc_title = self.findChild(LineEdit, 'set_wcc_title')  # 倒计时标题
         # set_wcc_title.setText(conf.read_conf('Date', 'cd_text_custom'))
@@ -130,7 +139,7 @@ class desktop_widget(FluentWindow):
             conf.CFG.date.cd_text_custom = set_wcc_title.text()
             conf.save()
 
-        set_wcc_title.textChanged.connect(_save_wcc_title)
+        cast(SignalInstance, set_wcc_title.textChanged).connect(_save_wcc_title)
 
         set_countdown_date = self.findChild(CalendarPicker, 'set_countdown_date')  # 倒计时日期
         # if conf.read_conf('Date', 'countdown_date') != '':
@@ -140,24 +149,24 @@ class desktop_widget(FluentWindow):
             set_countdown_date.setDate(QDate.fromString(conf.CFG.date.countdown_date, 'yyyy-M-d'))
 
         def _save_countdown_date():
-            conf.CFG.date.countdown_date = set_countdown_date.date.toString('yyyy-M-d')
+            conf.CFG.date.countdown_date = cast(QDate, set_countdown_date.date).toString('yyyy-M-d')
             conf.save()
 
-        set_countdown_date.dateChanged.connect(_save_countdown_date)
+        cast(SignalInstance, set_countdown_date.dateChanged).connect(_save_countdown_date)
 
     def setup_about_interface(self):
         self.version = self.findChild(BodyLabel, 'version')
         self.version.setText(f'当前版本：{conf.CFG.other.version}\n正在检查最新版本…')
 
         self.version_thread = VersionThread()
-        self.version_thread.version_signal.connect(self.ab_check_update)
+        cast(SignalInstance, self.version_thread.version_signal).connect(self.ab_check_update)
         self.version_thread.start()
 
         github_page = self.findChild(PushButton, "button_github")
-        github_page.clicked.connect(lambda: QDesktopServices.openUrl(QUrl('https://github.com/RinLit-233-shiroko/Class-Widgets')))
+        cast(SignalInstance, github_page.clicked).connect(lambda: QDesktopServices.openUrl(QUrl('https://github.com/RinLit-233-shiroko/Class-Widgets')))
 
         bilibili_page = self.findChild(PushButton, 'button_bilibili')
-        bilibili_page.clicked.connect(lambda: QDesktopServices.openUrl(QUrl('https://space.bilibili.com/569522843')))
+        cast(SignalInstance, bilibili_page.clicked).connect(lambda: QDesktopServices.openUrl(QUrl('https://space.bilibili.com/569522843')))
 
     def setup_advance_interface(self):
         margin_spin = self.findChild(SpinBox, 'margin_spin')
@@ -169,47 +178,47 @@ class desktop_widget(FluentWindow):
             conf.CFG.general.margin = margin_spin.value()
             conf.save()
 
-        margin_spin.valueChanged.connect(_save_margin)
+        cast(SignalInstance, margin_spin.valueChanged).connect(_save_margin)
 
         conf_combo = self.findChild(ComboBox, 'conf_combo')
         conf_combo.addItems(presets.get_schedule_config())
         # conf_combo.setCurrentIndex(presets.get_schedule_config().index(conf.read_conf('General', 'schedule')))
         conf_combo.setCurrentIndex(presets.get_schedule_config().index(conf.CFG.general.schedule))
-        conf_combo.currentIndexChanged.connect(self.ad_change_file)  # 切换配置文件
+        cast(SignalInstance, conf_combo.currentIndexChanged).connect(self.ad_change_file)  # 切换配置文件
 
         conf_name = self.findChild(LineEdit, 'conf_name')
         conf_name.setText(filename[:-5])
-        conf_name.textChanged.connect(self.ad_change_file_name)
+        cast(SignalInstance, conf_name.textChanged).connect(self.ad_change_file_name)
 
         switch_pin_button = self.findChild(SwitchButton, 'switch_pin_button')
         # switch_pin_button.setChecked(int(conf.read_conf('General', 'pin_on_top')))
         switch_pin_button.setChecked(conf.CFG.general.pin_on_top)
-        switch_pin_button.checkedChanged.connect(self.switch_pin)  # 置顶开关
+        cast(SignalInstance, switch_pin_button.checkedChanged).connect(self.switch_pin)  # 置顶开关
 
         switch_startup = self.findChild(SwitchButton, 'switch_startup')
         # switch_startup.setChecked(int(conf.read_conf('General', 'auto_startup')))
         switch_startup.setChecked(conf.CFG.general.auto_startup)
-        switch_startup.checkedChanged.connect(self.switch_startup)  # 开机自启
+        cast(SignalInstance, switch_startup.checkedChanged).connect(self.switch_startup)  # 开机自启
 
         switch_auto_hide = self.findChild(SwitchButton, 'switch_auto_hide')
         # switch_auto_hide.setChecked(int(conf.read_conf('General', 'auto_hide')))
         switch_auto_hide.setChecked(conf.CFG.general.auto_hide)
-        switch_auto_hide.checkedChanged.connect(self.switch_auto_hide)  # 自动隐藏
+        cast(SignalInstance, switch_auto_hide.checkedChanged).connect(self.switch_auto_hide)  # 自动隐藏
 
         switch_enable_toast = self.findChild(SwitchButton, 'switch_enable_toast')
         # switch_enable_toast.setChecked(int(conf.read_conf('General', 'enable_toast')))
         switch_enable_toast.setChecked(conf.CFG.general.enable_toast)
-        switch_enable_toast.checkedChanged.connect(self.switch_enable_toast)  # 通知开关
+        cast(SignalInstance, switch_enable_toast.checkedChanged).connect(self.switch_enable_toast)  # 通知开关
 
         switch_enable_alt_schedule = self.findChild(SwitchButton, 'switch_enable_alt_schedule')
         # switch_enable_alt_schedule.setChecked(int(conf.read_conf('General', 'enable_alt_schedule')))
         switch_enable_alt_schedule.setChecked(conf.CFG.general.enable_alt_schedule)
-        switch_enable_alt_schedule.checkedChanged.connect(self.switch_enable_alt_schedule)  # 单双周开关
+        cast(SignalInstance, switch_enable_alt_schedule.checkedChanged).connect(self.switch_enable_alt_schedule)  # 单双周开关
 
         switch_enable_multiple_programs = self.findChild(SwitchButton, 'switch_multiple_programs')
         # switch_enable_multiple_programs.setChecked(int(conf.read_conf('Other', 'multiple_programs')))
         switch_enable_multiple_programs.setChecked(conf.CFG.other.multiple_programs)
-        switch_enable_multiple_programs.checkedChanged.connect(self.switch_enable_multiple_programs)  # 多开
+        cast(SignalInstance, switch_enable_multiple_programs.checkedChanged).connect(self.switch_enable_multiple_programs)  # 多开
 
         set_start_date = self.findChild(CalendarPicker, 'set_start_date')  # 倒计时日期
         # if conf.read_conf('Date', 'start_date') != '':
@@ -219,10 +228,10 @@ class desktop_widget(FluentWindow):
             set_start_date.setDate(QDate.fromString(conf.CFG.date.start_date, 'yyyy-M-d'))
 
         def _save_start_date():
-            conf.CFG.date.start_date = set_start_date.date.toString('yyyy-M-d')
+            conf.CFG.date.start_date = cast(QDate, set_start_date.date).toString('yyyy-M-d')
             conf.save()
 
-        set_start_date.dateChanged.connect(_save_start_date)
+        cast(SignalInstance, set_start_date.dateChanged).connect(_save_start_date)
 
         offset_spin = self.findChild(SpinBox, 'offset_spin')
         # offset_spin.setValue(int(conf.read_conf('General', 'time_offset')))
@@ -233,68 +242,68 @@ class desktop_widget(FluentWindow):
             conf.CFG.general.time_offset = offset_spin.value()
             conf.save()
 
-        offset_spin.valueChanged.connect(_save_offset)
+        cast(SignalInstance, offset_spin.valueChanged).connect(_save_offset)
 
     def setup_schedule_edit(self):
         self.se_load_item()
         se_set_button = self.findChild(ToolButton, 'set_button')
         se_set_button.setIcon(fIcon.EDIT)
-        se_set_button.clicked.connect(self.se_edit_item)
+        cast(SignalInstance, se_set_button.clicked).connect(self.se_edit_item)
 
         se_clear_button = self.findChild(ToolButton, 'clear_button')
         se_clear_button.setIcon(fIcon.DELETE)
-        se_clear_button.clicked.connect(self.se_delete_item)
+        cast(SignalInstance, se_clear_button.clicked).connect(self.se_delete_item)
 
         se_class_kind_combo = self.findChild(ComboBox, 'class_combo')  # 课程类型
         se_class_kind_combo.addItems(presets.class_kind)
 
         se_week_combo = self.findChild(ComboBox, 'week_combo')  # 星期
         se_week_combo.addItems(presets.week)
-        se_week_combo.currentIndexChanged.connect(self.se_upload_list)
+        cast(SignalInstance, se_week_combo.currentIndexChanged).connect(self.se_upload_list)
 
         se_schedule_list = self.findChild(ListWidget, 'schedule_list')
         se_schedule_list.addItems(schedule_dict[str(current_week)])
-        se_schedule_list.itemChanged.connect(self.se_upload_item)
+        cast(SignalInstance, se_schedule_list.itemChanged).connect(self.se_upload_item)
 
         se_save_button = self.findChild(PrimaryPushButton, 'save_schedule')
-        se_save_button.clicked.connect(self.se_save_item)
+        cast(SignalInstance, se_save_button.clicked).connect(self.se_save_item)
 
         se_week_type_combo = self.findChild(ComboBox, 'week_type_combo')
         se_week_type_combo.addItems(presets.week_type)
-        se_week_type_combo.currentIndexChanged.connect(self.se_upload_list)
+        cast(SignalInstance, se_week_type_combo.currentIndexChanged).connect(self.se_upload_list)
 
         se_copy_schedule_button = self.findChild(PushButton, 'copy_schedule')
         se_copy_schedule_button.hide()
-        se_copy_schedule_button.clicked.connect(self.se_copy_odd_schedule)
+        cast(SignalInstance, se_copy_schedule_button.clicked).connect(self.se_copy_odd_schedule)
 
     def setup_timeline_edit(self):
         # teInterface
         te_add_button = self.findChild(ToolButton, 'add_button')  # 添加
         te_add_button.setIcon(fIcon.ADD)
-        te_add_button.clicked.connect(self.te_add_item)
+        cast(SignalInstance, te_add_button.clicked).connect(self.te_add_item)
 
         te_edit_button = self.findChild(ToolButton, 'edit_button')  # 编辑
         te_edit_button.setIcon(fIcon.EDIT)
-        te_edit_button.clicked.connect(self.te_edit_item)
+        cast(SignalInstance, te_edit_button.clicked).connect(self.te_edit_item)
 
         te_delete_button = self.findChild(ToolButton, 'delete_button')  # 删除
         te_delete_button.setIcon(fIcon.DELETE)
-        te_delete_button.clicked.connect(self.te_delete_item)
+        cast(SignalInstance, te_delete_button.clicked).connect(self.te_delete_item)
 
         te_m_start_time = self.findChild(TimePicker, 'morningStartTime')
-        te_m_start_time.timeChanged.connect(self.m_start_time_changed)
+        cast(SignalInstance, te_m_start_time.timeChanged).connect(self.m_start_time_changed)
         te_a_start_time = self.findChild(TimePicker, 'afternoonStartTime')
-        te_a_start_time.timeChanged.connect(self.a_start_time_changed)
+        cast(SignalInstance, te_a_start_time.timeChanged).connect(self.a_start_time_changed)
 
         te_class_activity_combo = self.findChild(ComboBox, 'class_activity')  # 活动类型
         te_class_activity_combo.addItems(presets.class_activity)
-        te_class_activity_combo.currentIndexChanged.connect(self.te_sync_time)
+        cast(SignalInstance, te_class_activity_combo.currentIndexChanged).connect(self.te_sync_time)
 
         te_time_combo = self.findChild(ComboBox, 'time_period')  # 时段
         te_time_combo.addItems(presets.time)
 
         te_save_button = self.findChild(PrimaryPushButton, 'save')  # 保存
-        te_save_button.clicked.connect(self.te_save_item)
+        cast(SignalInstance, te_save_button.clicked).connect(self.te_save_item)
         self.te_load_item()
 
     def setup_schedule_preview(self):
@@ -306,7 +315,7 @@ class desktop_widget(FluentWindow):
 
         sp_week_type_combo = self.findChild(ComboBox, 'pre_week_type_combo')
         sp_week_type_combo.addItems(presets.week_type)
-        sp_week_type_combo.currentIndexChanged.connect(self.sp_fill_grid_row)
+        cast(SignalInstance, sp_week_type_combo.currentIndexChanged).connect(self.sp_fill_grid_row)
 
         # 设置表格
         schedule_view.setColumnCount(7)
@@ -551,7 +560,7 @@ class desktop_widget(FluentWindow):
                 else:
                     item = QTableWidgetItem('')
                 schedule_view.setItem(j, i, item)
-                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)  # 设置单元格文本居中对齐
+                item.setTextAlignment(Qt.AlignCenter)  # 设置单元格文本居中对齐
 
     # 加载时间线
     def te_load_item(self, file=filename):
@@ -859,6 +868,7 @@ class desktop_widget(FluentWindow):
         global morning_st
         te_m_start_time = self.findChild(TimePicker, 'morningStartTime')
         unformatted_time = te_m_start_time.time
+        unformatted_time = cast(QTime, unformatted_time)
         h = unformatted_time.hour()
         m = unformatted_time.minute()
         morning_st = (h, m)
@@ -867,6 +877,7 @@ class desktop_widget(FluentWindow):
         global afternoon_st
         te_m_start_time = self.findChild(TimePicker, 'afternoonStartTime')
         unformatted_time = te_m_start_time.time
+        unformatted_time = cast(QTime, unformatted_time)
         h = unformatted_time.hour()
         m = unformatted_time.minute()
         afternoon_st = (h, m)

@@ -7,9 +7,9 @@ eval-type-backport==0.2.0
 idna==3.10
 loguru==0.7.2
 playsound==1.2.2
-pydantic==2.9.2
-pyqt6
-pyqt6-fluent-widgets
+pydantic==2.7.0
+PySide2==5.15.2.1
+PySide2-Fluent-Widgets==1.6.6
 pywin32==306; platform_system == "Windows"
 requests==2.32.3
 urllib3==2.2.3

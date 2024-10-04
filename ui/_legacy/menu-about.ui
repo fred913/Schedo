@@ -130,7 +130,7 @@
      <item>
       <widget class="CaptionLabel" name="CaptionLabel">
        <property name="text">
-        <string>此软件基于 PyQt6 开发，其中特别引用 QFluentWidget 作为界面UI，根据协议采用 GPL-3.0 开源协议。
+        <string>此软件基于 PySide2 开发，其中特别引用 QFluentWidget 作为界面UI，根据协议采用 GPL-3.0 开源协议。
 由 RinLit 开发</string>
        </property>
        <property name="alignment">

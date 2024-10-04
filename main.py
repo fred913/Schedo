@@ -1,12 +1,15 @@
 import datetime as dt
 import sys
 from shutil import copy
+from typing import Type
+from xml.dom.minidom import Attr
 
 from loguru import logger
-from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, QRect, Qt, QTimer
-from PyQt6.QtGui import QColor, QIcon
-from PyQt6.QtWidgets import QApplication, QGraphicsBlurEffect, QGraphicsDropShadowEffect, QLabel, QMenu, QProgressBar, QPushButton, QSystemTrayIcon, QWidget
+from PySide2.QtCore import QByteArray, QEasingCurve, QPropertyAnimation, QRect, Qt, QTimer
+from PySide2.QtGui import QColor, QIcon
+from PySide2.QtWidgets import QApplication, QGraphicsBlurEffect, QGraphicsDropShadowEffect, QLabel, QMenu, QProgressBar, QPushButton, QSystemTrayIcon, QWidget
 from qfluentwidgets import Theme, setTheme, setThemeColor
+from typing_extensions import TypeVar
 
 import conf
 import exact_menu
@@ -315,6 +318,8 @@ get_current_lessons()
 get_current_state()
 get_next_lessons()
 
+T = TypeVar("T")
+
 
 class DesktopWidget(QWidget):  # 主要小组件
 
@@ -331,12 +336,9 @@ class DesktopWidget(QWidget):  # 主要小组件
         # 设置窗口无边框和透明背景
         pin_on_top_cfg = conf.CFG.general.pin_on_top
         if pin_on_top_cfg is None or int(pin_on_top_cfg):  # 置顶
-            self.setWindowFlags(Qt.WindowType.FramelessWindowHint
-                                | Qt.WindowType.WindowStaysOnTopHint
-                                | Qt.WindowType.Tool
-                                | Qt.WindowType.WindowDoesNotAcceptFocus)
+            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool | Qt.WindowDoesNotAcceptFocus)
         else:
-            self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool)
+            self.setWindowFlags(Qt.FramelessWindowHint | Qt.Tool)
 
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
@@ -412,6 +414,9 @@ class DesktopWidget(QWidget):  # 主要小组件
         self.timer.timeout.connect(lambda: self.update_data(path=path))
         self.timer.start()
 
+    def findChild(self, arg__1: Type[T], arg__2: str = ...) -> T:
+        return super().findChild(arg__1, arg__2)  # type: ignore
+
     def open_settings(self):
         if self.menu is None or not self.menu.isVisible():  # 防多开
             self.menu = menu.desktop_widget()
@@ -436,28 +441,28 @@ class DesktopWidget(QWidget):  # 主要小组件
 
     def animate_window(self, target_pos):  # 窗口动画！
         # 创建位置动画
-        self.animation = QPropertyAnimation(self, b"geometry")
+        self.animation = QPropertyAnimation(self, QByteArray(b"geometry"))
         self.animation.setDuration(525)  # 持续时间
         self.animation.setStartValue(QRect(target_pos[0], -self.height(), self.width(), self.height()))
         self.animation.setEndValue(QRect(target_pos[0], target_pos[1], self.width(), self.height()))
-        self.animation.setEasingCurve(QEasingCurve.Type.InOutCirc)  # 设置动画效果
+        self.animation.setEasingCurve(QEasingCurve.InOutCirc)  # 设置动画效果
         self.animation.start()
 
     def animate_auto_hide(self):  # 自动隐藏窗口
-        self.animation = QPropertyAnimation(self, b"geometry")
+        self.animation = QPropertyAnimation(self, QByteArray(b"geometry"))
         self.animation.setDuration(625)  # 持续时间
         self.animation.setStartValue(QRect(self.x(), self.y(), self.width(), self.height()))
         self.animation.setEndValue(QRect(self.x(), -self.height() + 40, self.width(), self.height()))
-        self.animation.setEasingCurve(QEasingCurve.Type.InOutCirc)  # 设置动画效果
+        self.animation.setEasingCurve(QEasingCurve.InOutCirc)  # 设置动画效果
         self.animation.start()
 
     def animate_show(self):  # 显示窗口
-        self.animation = QPropertyAnimation(self, b"geometry")
+        self.animation = QPropertyAnimation(self, QByteArray(b"geometry"))
         self.animation.setDuration(625)  # 持续时间
         self.animation.setStartValue(QRect(self.x(), self.y(), self.width(), self.height()))
         margin_cfg = conf.CFG.general.margin
         self.animation.setEndValue(QRect(self.x(), int(margin_cfg or "10"), self.width(), self.height()))
-        self.animation.setEasingCurve(QEasingCurve.Type.InOutCirc)  # 设置动画效果
+        self.animation.setEasingCurve(QEasingCurve.InOutCirc)  # 设置动画效果
         self.animation.start()
 
     def update_data(self, first_setup=0, path=''):
@@ -533,7 +538,7 @@ class DesktopWidget(QWidget):  # 主要小组件
                 self.custom_countdown.setText('-')
 
     # 点击自动隐藏
-    def mousePressEvent(self, a0):
+    def mousePressEvent(self, event):
         # if conf.read_conf('Temp', 'hide') == '0':  # 置顶
         #     conf.write_conf('Temp', 'hide', '1')
         # else:
@@ -625,4 +630,12 @@ if __name__ == '__main__':
         application.show()
         app.processEvents()
 
-    sys.exit(app.exec())
+    try:
+        sys.exit(app.exec())
+    except AttributeError:
+        try:
+            sys.exit(app.exec_())
+        except Exception as e:
+            raise e from None
+    finally:
+        exit()

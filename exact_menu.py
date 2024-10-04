@@ -1,15 +1,17 @@
 import datetime as dt
 import shutil
 import sys
+from typing import Type, cast
 
 from loguru import logger
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import QApplication
+from PySide2.QtCore import Qt, SignalInstance
+from PySide2.QtGui import QIcon
+from PySide2.QtWidgets import QApplication
 from qfluentwidgets import ComboBox
 from qfluentwidgets import FluentIcon as fIcon
 from qfluentwidgets import (FluentWindow, Flyout, FlyoutAnimationType, HyperlinkButton, InfoBarIcon, LineEdit, ListWidget, PrimaryPushButton, Theme,
                             ToolButton, setTheme)
+from typing_extensions import TypeVar
 
 import conf
 import menu
@@ -20,8 +22,13 @@ from utils import WeekType, get_week_type, loadUi, read_schedule_config
 current_week = dt.datetime.today().weekday()
 temp_schedule = {'schedule': {}, 'schedule_even': {}}
 
+T = TypeVar('T')
+
 
 class ExactMenu(FluentWindow):
+
+    def findChild(self, arg__1: Type[T], arg__2: str = ...) -> T:
+        return super().findChild(arg__1, arg__2)  # type: ignore
 
     def __init__(self):
         super().__init__()
@@ -36,7 +43,7 @@ class ExactMenu(FluentWindow):
         select_temp_week = self.findChild(ComboBox, 'select_temp_week')  # 选择替换日期
         select_temp_week.addItems(presets.week)
         select_temp_week.setCurrentIndex(current_week)
-        select_temp_week.currentIndexChanged.connect(self.refresh_schedule_list)  # 日期选择变化
+        cast(SignalInstance, select_temp_week.currentIndexChanged).connect(self.refresh_schedule_list)  # 日期选择变化
 
         tmp_schedule_list = self.findChild(ListWidget, 'schedule_list')  # 换课列表
         tmp_schedule_list.addItems(self.load_schedule())
@@ -188,7 +195,7 @@ class ExactMenu(FluentWindow):
         screen_geometry = primary_screen.geometry()
         screen_width = screen_geometry.width()
 
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
+        self.setWindowFlags(Qt.FramelessWindowHint)
         setTheme(Theme.AUTO)
 
         self.resize(1000, 700)

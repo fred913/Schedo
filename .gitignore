@@ -5,6 +5,8 @@
 /config.ini.bak
 /config.json
 
+/*.exe
+
 # - Python
 
 # Byte-compiled / optimized / DLL files

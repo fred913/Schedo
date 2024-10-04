@@ -1,4 +1,5 @@
 import enum
+import importlib
 import json
 import os
 from dataclasses import dataclass
@@ -6,24 +7,73 @@ from datetime import datetime
 from typing import Any
 
 from loguru import logger
-from PyQt6 import uic
-from PyQt6.QtCore import QObject
+from PySide2.QtCore import QFile, QIODevice, QObject
+from PySide2.QtUiTools import QUiLoader
+from PySide2.QtWidgets import QApplication, QWidget
 from typing_extensions import TypeVar
 from win32com.client import Dispatch
 from win32com.client.dynamic import CDispatch
 
 import presets
+import ui as ui_mod
 from conf import CFG
 from exceptions import UnsupportedOperationPlatformError
 from globals import APP_NAME
 
+# def loadUi(ui_file: str, theme: str = "default", *, raw=False, base_instance: 'QObject | None' = None):
+#     if not raw:
+#         ui = uic.load_ui.loadUi(f"ui/{theme}/{ui_file}", baseinstance=base_instance)
+#     else:
+#         ui = uic.load_ui.loadUi(ui_file, baseinstance=base_instance)
+#     assert ui is not None, f"Failed to load UI file: {ui_file}"
+#     return ui
+UI_MAPPING = {
+    "exact_menu.ui": "ui_exact_menu.py",
+    "menu-about.ui": "ui_about.py",
+    "menu-advance.ui": "ui_advance.py",
+    "menu-configs.ui": "ui_configs.py",
+    "menu-custom.ui": "ui_custom.py",
+    "menu-preview.ui": "ui_preview.py",
+    "menu-schedule_edit.ui": "ui_schedule_edit.py",
+    "menu-timeline_edit.ui": "ui_timeline_edit.py",
+    "widget-countdown-custom.ui": "ui_countdown_custom.py",
+    "widget-countdown.ui": "ui_countdown.py",
+    "widget-current-activity.ui": "ui_current_activity.py",
+    "widget-next-activity.ui": "ui_next_activity.py",
+    "widget-time.ui": "ui_time.py",
+    "widget-toast-bar.ui": "ui_toast_bar.py",
+    "widget-weather.ui": "ui_weather.py"
+}
+
 
 def loadUi(ui_file: str, theme: str = "default", *, raw=False, base_instance: 'QObject | None' = None):
-    if not raw:
-        ui = uic.load_ui.loadUi(f"ui/{theme}/{ui_file}", baseinstance=base_instance)
-    else:
-        ui = uic.load_ui.loadUi(ui_file, baseinstance=base_instance)
-    assert ui is not None, f"Failed to load UI file: {ui_file}"
+    assert ui_mod is not None, f"UI package not compiled"
+    assert ui_file in UI_MAPPING, f"UI file not found: {ui_file}"
+    # ignore raw, theme, base_instance; import the python file from ui module, return <module>.Ui_Form(base_instance)
+    mod_name = UI_MAPPING[ui_file]
+    if mod_name.endswith('.py'):
+        mod_name = mod_name[:-3]
+    # mod = importlib(f"ui.{mod_name}", globals(), locals(), [f"ui.{theme}.{mod_name}.Ui_Form"], 0)
+    # importlib
+    mod = getattr(ui_mod, f"{mod_name}")
+
+    # try:
+    #     ui = getattr(mod, f"Ui_Form")(base_instance)
+    # except TypeError:
+    #     ui = getattr(mod, f"Ui_Form")()
+    # if hasattr(ui, "setupUi"):
+    #     try:
+    #         assert base_instance is not None
+    #         ui.setupUi(base_instance)
+    #     except (TypeError, AssertionError):
+    #         ui.setupUi()
+    class TargetWidgetWithUi(QWidget, getattr(mod, f"Ui_Form")):
+
+        def __init__(self, parent=None):
+            super().__init__(parent)
+            self.setupUi(self)
+
+    ui = TargetWidgetWithUi(base_instance)
     return ui
 
 

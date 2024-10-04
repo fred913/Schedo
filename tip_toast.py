@@ -1,10 +1,12 @@
 import sys
+from typing import Type
 
 from loguru import logger
 from playsound import playsound
-from PyQt6.QtCore import QEasingCurve, QParallelAnimationGroup, QPropertyAnimation, QRect, Qt, QTimer
-from PyQt6.QtWidgets import QApplication, QFrame, QLabel, QWidget
+from PySide2.QtCore import QByteArray, QEasingCurve, QParallelAnimationGroup, QPropertyAnimation, QRect, Qt, QTimer
+from PySide2.QtWidgets import QApplication, QFrame, QLabel, QWidget
 from qfluentwidgets import setThemeColor
+from typing_extensions import TypeVar
 
 import conf
 import presets
@@ -18,15 +20,19 @@ finish_class_p_color = '#5ADFAA'
 
 window_list = []  # 窗口列表
 
+T = TypeVar('T')
 
-# 重写力
+
 class tip_toast(QWidget):
+
+    def findChild(self, arg__1: Type[T], arg__2: str = ...) -> T:
+        return super().findChild(arg__1, arg__2)  # type: ignore
 
     def __init__(self, pos, width, state=1, lesson_name=''):
         super().__init__()
         loadUi("widget-toast-bar.ui", base_instance=self)
 
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.Tool)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.move(pos[0], pos[1])
         self.resize(width, 125)
@@ -82,15 +88,15 @@ class tip_toast(QWidget):
         self.timer.timeout.connect(self.close_window)
 
         # 放大效果
-        self.geometry_animation = QPropertyAnimation(self, b"geometry")
+        self.geometry_animation = QPropertyAnimation(self, QByteArray(b"geometry"))
         self.geometry_animation.setDuration(350)  # 动画持续时间
         self.geometry_animation.setStartValue(
             QRect(int(start_x + mini_size_x / 2), int(start_y + mini_size_y / 2), total_width - mini_size_x, 125 - mini_size_y))
         self.geometry_animation.setEndValue(QRect(start_x, start_y, total_width, 125))
-        self.geometry_animation.setEasingCurve(QEasingCurve.Type.InOutCirc)
+        self.geometry_animation.setEasingCurve(QEasingCurve.InOutCirc)
 
         # 渐显
-        self.opacity_animation = QPropertyAnimation(self, b"windowOpacity")
+        self.opacity_animation = QPropertyAnimation(self, QByteArray(b"windowOpacity"))
         self.opacity_animation.setDuration(400)
         self.opacity_animation.setStartValue(0)
         self.opacity_animation.setEndValue(1)
@@ -107,14 +113,14 @@ class tip_toast(QWidget):
         mini_size_x = 120
         mini_size_y = 20
         # 放大效果
-        self.geometry_animation_close = QPropertyAnimation(self, b"geometry")
+        self.geometry_animation_close = QPropertyAnimation(self, QByteArray(b"geometry"))
         self.geometry_animation_close.setDuration(350)  # 动画持续时间
         self.geometry_animation_close.setStartValue(QRect(start_x, start_y, total_width, 125))
         self.geometry_animation_close.setEndValue(
             QRect(int(start_x + mini_size_x / 2), int(start_y + mini_size_y / 2), total_width - mini_size_x, 125 - mini_size_y))
-        self.geometry_animation_close.setEasingCurve(QEasingCurve.Type.InOutCirc)
+        self.geometry_animation_close.setEasingCurve(QEasingCurve.InOutCirc)
 
-        self.opacity_animation_close = QPropertyAnimation(self, b"windowOpacity")
+        self.opacity_animation_close = QPropertyAnimation(self, QByteArray(b"windowOpacity"))
         self.opacity_animation_close.setDuration(200)
         self.opacity_animation_close.setStartValue(1)
         self.opacity_animation_close.setEndValue(0)
