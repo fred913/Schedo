@@ -16,10 +16,8 @@ import exact_menu
 import menu
 import presets
 import tip_toast
-from exceptions import UnsupportedOperationPlatformError
 from globals import APP_NAME, CONFIG_DIR
-from utils import (WeekType, add_shortcut, add_shortcut_to_startmenu, get_time_offset, get_week_type, is_temp_week, loadUi, read_countdown_config,
-                   read_schedule_config)
+from utils import WeekType, get_time_offset, get_week_type, is_temp_week, loadUi, read_countdown_config, read_schedule_config
 
 today = dt.date.today()
 filename = conf.CFG.general.schedule
@@ -100,7 +98,6 @@ def get_current_lessons():  # 获取今日课程
         logger.error('课程表文件格式错误：timeline 字段应当是一个字典')
         return
 
-    # if conf.read_conf('General', 'enable_alt_schedule') == '1':
     if conf.CFG.general.enable_alt_schedule:
         try:
             # if conf.get_week_type():
@@ -356,9 +353,6 @@ class DesktopWidget(QWidget):  # 主要小组件
 
             self.tray_menu = QMenu()
 
-            # self.tray_menu.addAction('恢复不透明度', lambda: conf.write_conf('General', 'transparent', '240'))
-            # self.tray_menu.addAction('降低不透明度', lambda: conf.write_conf('General', 'transparent', '185'))
-
             def increase_opacity():
                 conf.CFG.general.transparent = 240
                 conf.save()
@@ -435,7 +429,6 @@ class DesktopWidget(QWidget):  # 主要小组件
                 self.exmenu.raise_()
                 self.exmenu.activateWindow()
         else:
-            # conf.write_conf('Temp', 'hide', '0')
             conf.CFG.temp.hide = False
             conf.save()
 
@@ -526,9 +519,6 @@ class DesktopWidget(QWidget):  # 主要小组件
                 self.ac_title.setText(cd_list[0])
                 self.countdown_progress_bar.setValue(cd_list[2])
         if hasattr(self, 'countdown_custom_title'):
-            # self.custom_title.setText(f'距离 {conf.read_conf("Date", "cd_text_custom")} 还有')
-            # self.custom_countdown.setText(conf.get_custom_countdown())
-
             cd_data = read_countdown_config()
             if cd_data:
                 self.custom_title.setText(f'距离 {cd_data.label} 还有')
@@ -539,24 +529,11 @@ class DesktopWidget(QWidget):  # 主要小组件
 
     # 点击自动隐藏
     def mousePressEvent(self, event):
-        # if conf.read_conf('Temp', 'hide') == '0':  # 置顶
-        #     conf.write_conf('Temp', 'hide', '1')
-        # else:
-        #     conf.write_conf('Temp', 'hide', '0')
-        # if conf.CFG.temp.hide:
-        #     conf.CFG.temp.hide = False
-        # else:
-        #     conf.CFG.temp.hide = True
         conf.CFG.temp.hide = not conf.CFG.temp.hide
         conf.save()
 
 
 def init_config():  # 重设配置文件
-    # conf.write_conf('Temp', 'set_week', '')
-    # conf.write_conf('Temp', 'hide', '0')
-    # if conf.read_conf('Temp', 'temp_schedule') != '':  # 修复换课重置
-    #     copy('config/schedule/backup.json', f'config/schedule/{filename}')
-    #     conf.write_conf('Temp', 'temp_schedule', '')
     conf.CFG.temp.set_week = ''
     conf.CFG.temp.hide = False
     conf.save()
@@ -604,20 +581,21 @@ if __name__ == '__main__':
             width += presets.widget_width[widgets[i]]
         return int(start_x + spacing * num + width)
 
-    if conf.CFG.other.initialstartup == '1':  # 首次启动
-        try:
-            add_shortcut('ClassWidgets.exe', 'img/favicon.ico')
+    # TODO add an action in menu to add shortcut to startmenu/desktop, instead of creating shortcut automatically without user's consent
+    # if conf.CFG.other.initialstartup == '1':  # 首次启动
+    #     try:
+    #         add_shortcut('ClassWidgets.exe', 'img/favicon.ico')
 
-            try:
-                add_shortcut_to_startmenu('ClassWidgets.exe', 'img/favicon.ico')
-            except UnsupportedOperationPlatformError:
-                # not win32 platform, unsupported
-                logger.warning('Non-win32 platform detected, will not add shortcut to startmenu.')
+    #         try:
+    #             add_shortcut_to_startmenu('ClassWidgets.exe', 'img/favicon.ico')
+    #         except UnsupportedOperationPlatformError:
+    #             # not win32 platform, unsupported
+    #             logger.warning('Non-win32 platform detected, will not add shortcut to startmenu.')
 
-            conf.CFG.other.initialstartup = ''
-            conf.save()  # this is really bullshit design; wait for further restructuring
-        except Exception as e:
-            logger.error(f'添加快捷方式失败：{e}')
+    #         conf.CFG.other.initialstartup = ''
+    #         conf.save()  # this is really bullshit design; wait for further restructuring
+    #     except Exception as e:
+    #         logger.error(f'添加快捷方式失败：{e}')
 
     for w in range(len(widgets)):
         if w == 0:

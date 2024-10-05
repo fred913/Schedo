@@ -166,7 +166,6 @@ def import_schedule(filepath, filename):  # 导入课表
     try:
         copy(filepath, f'config/schedule/{filename}')
         update_schedule_config(check_data, filename)
-        # conf.write_conf('General', 'schedule', filename)
         conf.CFG.general.schedule = filename
         conf.save()
         return True

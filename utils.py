@@ -1,5 +1,4 @@
 import enum
-import importlib
 import json
 import os
 from dataclasses import dataclass
@@ -7,18 +6,15 @@ from datetime import datetime
 from typing import Any
 
 from loguru import logger
-from PySide2.QtCore import QFile, QIODevice, QObject
-from PySide2.QtUiTools import QUiLoader
-from PySide2.QtWidgets import QApplication, QWidget
+from PySide2.QtCore import QObject
+from PySide2.QtWidgets import QWidget
 from typing_extensions import TypeVar
-from win32com.client import Dispatch
-from win32com.client.dynamic import CDispatch
 
+import conf
 import presets
 import ui as ui_mod
+import win32lib
 from conf import CFG
-from exceptions import UnsupportedOperationPlatformError
-from globals import APP_NAME
 
 # def loadUi(ui_file: str, theme: str = "default", *, raw=False, base_instance: 'QObject | None' = None):
 #     if not raw:
@@ -90,120 +86,6 @@ def loadUi(ui_file: str, theme: str = "default", *, raw=False, base_instance: 'Q
 
     ui = TargetWidgetWithUi(base_instance)
     return ui
-
-
-def add_shortcut_to_startmenu(file='', icon=''):
-    try:
-        if file == "":
-            file_path = os.path.realpath(__file__)
-        else:
-            file_path = os.path.abspath(file)  # 将相对路径转换为绝对路径
-
-        if icon == "":
-            icon_path = file_path  # 如果未指定图标路径，则使用程序路径
-        else:
-            icon_path = os.path.abspath(icon)  # 将相对路径转换为绝对路径
-
-        # 获取开始菜单文件夹路径
-        appdata = os.getenv('APPDATA')
-        if appdata is None:
-            raise UnsupportedOperationPlatformError("APPDATA environment variable not found.")
-
-        menu_folder = os.path.join(appdata, 'Microsoft', 'Windows', 'Start Menu', 'Programs')
-
-        # Check if the menu folder exists
-        if not os.path.exists(menu_folder):
-            raise FileNotFoundError(f"The Start Menu Programs folder does not exist: {menu_folder}")
-
-        # 快捷方式文件名（使用文件名或自定义名称）
-        name = os.path.splitext(os.path.basename(file_path))[0]  # 使用文件名作为快捷方式名称
-        shortcut_path = os.path.join(menu_folder, f'{name}.lnk')
-
-        # 创建快捷方式
-        shell: CDispatch = Dispatch('WScript.Shell')
-        shortcut = shell.CreateShortCut(shortcut_path)
-        shortcut.Targetpath = file_path
-        shortcut.WorkingDirectory = os.path.dirname(file_path)
-        shortcut.IconLocation = icon_path  # 设置图标路径
-        shortcut.save()
-    except Exception as e:
-        logger.error(f"创建开始菜单快捷方式时出错: {e}")
-
-
-def add_shortcut(file='', icon=''):
-    try:
-        if file == "":
-            file_path = os.path.realpath(__file__)
-        else:
-            file_path = os.path.abspath(file)
-
-        if icon == "":
-            icon_path = file_path
-        else:
-            icon_path = os.path.abspath(icon)
-
-        # 获取桌面文件夹路径
-        userprofile = os.getenv('USERPROFILE')
-        if userprofile is None:
-            raise UnsupportedOperationPlatformError("USERPROFILE environment variable not found.")
-
-        desktop_folder = os.path.join(userprofile, 'Desktop')
-
-        # 快捷方式文件名（使用文件名或自定义名称）
-        name = os.path.splitext(os.path.basename(file_path))[0]  # 使用文件名作为快捷方式名称
-        shortcut_path = os.path.join(desktop_folder, f'{name}.lnk')
-
-        # 创建快捷方式
-        shell = Dispatch('WScript.Shell')
-        shortcut = shell.CreateShortCut(shortcut_path)
-        shortcut.Targetpath = file_path
-        shortcut.WorkingDirectory = os.path.dirname(file_path)
-        shortcut.IconLocation = icon_path  # 设置图标路径
-        shortcut.save()
-    except Exception as e:
-        logger.error(f"创建桌面快捷方式时出错: {e}")
-
-
-def add_to_startup(file_path='', icon_path=''):  # 注册到开机启动
-    if file_path == "":
-        file_path = os.path.realpath(__file__)
-    else:
-        file_path = os.path.abspath(file_path)  # 将相对路径转换为绝对路径
-
-    if icon_path == "":
-        icon_path = file_path  # 如果未指定图标路径，则使用程序路径
-    else:
-        icon_path = os.path.abspath(icon_path)  # 将相对路径转换为绝对路径
-
-    # 获取启动文件夹路径
-    appdata = os.getenv('APPDATA')
-    if appdata is None:
-        raise UnsupportedOperationPlatformError("APPDATA environment variable not found.")
-
-    startup_folder = os.path.join(appdata, 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup')
-
-    # 快捷方式文件名（使用文件名或自定义名称）
-    name = os.path.splitext(os.path.basename(file_path))[0]  # 使用文件名作为快捷方式名称
-    shortcut_path = os.path.join(startup_folder, f'{name}.lnk')
-
-    # 创建快捷方式
-    shell = Dispatch('WScript.Shell')
-    shortcut = shell.CreateShortCut(shortcut_path)
-    shortcut.Targetpath = file_path
-    shortcut.WorkingDirectory = os.path.dirname(file_path)
-    shortcut.IconLocation = icon_path  # 设置图标路径
-    shortcut.save()
-
-
-def remove_from_startup():
-    appdata = os.getenv('APPDATA')
-    if appdata is None:
-        raise UnsupportedOperationPlatformError("APPDATA environment variable not found.")
-
-    startup_folder = os.path.join(appdata, 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup')
-    shortcut_path = os.path.join(startup_folder, f'{APP_NAME}.lnk')
-    if os.path.exists(shortcut_path):
-        os.remove(shortcut_path)
 
 
 def read_schedule_config(filename: str) -> 'dict | None':
@@ -361,3 +243,10 @@ T = TypeVar("T")
 def assert_not_none(x: 'T | None') -> T:
     assert x is not None, "Unexpected None value"
     return x
+
+
+def refresh_startup():
+    if conf.CFG.general.auto_startup:
+        win32lib.win32lib.remove_from_startup()
+
+    win32lib.win32lib.add_to_startup('ClassWidgets.exe', 'img/favicon.ico')

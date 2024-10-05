@@ -103,18 +103,12 @@ class ExactMenu(FluentWindow):
         try:
             temp_week = self.findChild(ComboBox, 'select_temp_week')
             if temp_schedule != {'schedule': {}, 'schedule_even': {}}:
-                # if conf.read_conf('Temp', 'temp_schedule') == '':  # 备份检测
-                #     copy(f'config/schedule/{filename}', f'config/schedule/backup.json')  # 备份课表配置
-                #     logger.info(f'备份课表配置成功：已将 {filename} -备份至-> backup.json')
                 if conf.CFG.temp.temp_schedule:
                     shutil.copy(CONFIG_DIR / 'schedule' / filename, CONFIG_DIR / 'schedule' / 'backup.json')
                     logger.info(f'Made backup of schedule config: {filename} -> backup.json')
-                # conf.write_conf('Temp', 'temp_schedule', filename)
-                # conf.save_data_to_json(temp_schedule, filename)
                 conf.CFG.temp.temp_schedule = filename
                 conf.save()
 
-            # conf.write_conf('Temp', 'set_week', str(temp_week.currentIndex()))
             conf.CFG.temp.set_week = str(temp_week.currentIndex())
             conf.save()
             Flyout.create(icon=InfoBarIcon.SUCCESS,
