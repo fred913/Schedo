@@ -5,6 +5,7 @@ from shutil import copy
 from loguru import logger
 
 import conf
+from assets import get_img_dir
 from utils import update_schedule_config
 
 week = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
@@ -103,11 +104,11 @@ def get_subject_abbreviation(key):
 
 
 # 学科图标
-def get_subject_icon(key):
+def get_subject_icon(key) -> str:
     if key in subject_icon:
-        return f'img/{subject_icon[key]}.svg'
+        return str(get_img_dir() / f'{subject_icon[key]}.svg')
     else:
-        return f'img/self_study.svg'
+        return str(get_img_dir() / 'self_study.svg')
 
 
 # 学科主题色

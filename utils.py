@@ -14,6 +14,7 @@ import conf
 import presets
 import ui as ui_mod
 import win32lib
+from assets import get_img_dir
 from conf import CFG
 
 # def loadUi(ui_file: str, theme: str = "default", *, raw=False, base_instance: 'QObject | None' = None):
@@ -25,7 +26,7 @@ from conf import CFG
 #     return ui
 
 UI_MAPPING = {
-    "exact_menu.ui": "ui_exact_menu.py",
+    "exact_menu.ui": "Ui_ExactMenu",
     "menu-about.ui": "Ui_About",
     "menu-advance.ui": "Ui_Advance",
     "menu-configs.ui": "Ui_Configs",
@@ -43,16 +44,29 @@ UI_MAPPING = {
 }
 
 
-def loadUi(ui_file: str, theme: str = "default", *, raw=False, base_instance: 'QObject | None' = None):
+def load_ui(ui_file: str, theme: str = "default", *, raw=False, base_instance: 'QObject | None' = None):
     assert ui_mod is not None, f"UI package not compiled"
     assert ui_file in UI_MAPPING, f"UI file not found: {ui_file}"
     # ignore raw, theme, base_instance; import the python file from ui module, return <module>.Ui_Form(base_instance)
-    mod_name = UI_MAPPING[ui_file]
-    if mod_name.endswith('.py'):
-        mod_name = mod_name[:-3]
+    ui_name = UI_MAPPING[ui_file]
+    if ui_name.endswith('.py'):
+        ui_name = ui_name[:-3]
     # mod = importlib(f"ui.{mod_name}", globals(), locals(), [f"ui.{theme}.{mod_name}.Ui_Form"], 0)
     # importlib
-    ui = getattr(ui_mod, f"{mod_name}")
+    ui = getattr(ui_mod, f"{ui_name}")
+    return ui
+
+
+def create_from_ui(ui_file: str, theme: str = "default", *, raw=False, parent: 'QObject | None' = None):
+    assert ui_mod is not None, f"UI package not compiled"
+    assert ui_file in UI_MAPPING, f"UI file not found: {ui_file}"
+    # ignore raw, theme, base_instance; import the python file from ui module, return <module>.Ui_Form(base_instance)
+    ui_name = UI_MAPPING[ui_file]
+    if ui_name.endswith('.py'):
+        ui_name = ui_name[:-3]
+    # mod = importlib(f"ui.{mod_name}", globals(), locals(), [f"ui.{theme}.{mod_name}.Ui_Form"], 0)
+    # importlib
+    ui = getattr(ui_mod, f"{ui_name}")
 
     # try:
     #     ui = getattr(mod, f"Ui_Form")(base_instance)
@@ -70,7 +84,7 @@ def loadUi(ui_file: str, theme: str = "default", *, raw=False, base_instance: 'Q
             super().__init__(parent)
             self.setupUi(self)
 
-    ui = TargetWidgetWithUi(base_instance)
+    ui = TargetWidgetWithUi(parent)
     return ui
 
 
@@ -129,9 +143,9 @@ class CountdownData:
     label: str
 
 
-def read_countdown_config() -> 'CountdownData | None':
+def calculate_countdown_from_config() -> 'CountdownData | None':
     custom_countdown = CFG.date.countdown_date
-    logger.debug(f"Custom countdown processing, {custom_countdown=}")
+    # logger.debug(f"Custom countdown processing, {custom_countdown=}")
     if custom_countdown is None or custom_countdown.strip() == '':
         return None
     else:
@@ -235,4 +249,4 @@ def refresh_startup():
     if conf.CFG.general.auto_startup:
         win32lib.win32lib.remove_from_startup('Schedo.lnk')
 
-    win32lib.win32lib.add_to_startup('Schedo.lnk', 'Schedo.exe', 'img/favicon.ico')
+    win32lib.win32lib.add_to_startup('Schedo.lnk', 'Schedo.exe', str(get_img_dir() / 'favicon.ico'))

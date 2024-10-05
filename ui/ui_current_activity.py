@@ -4,6 +4,8 @@ from PySide2.QtCore import QCoreApplication, QMetaObject, QRect, QSize, Qt
 from PySide2.QtGui import QFont, QIcon
 from PySide2.QtWidgets import QLabel, QPushButton
 
+from assets import get_img_dir
+
 
 class Ui_CurrentActivity(object):
 
@@ -26,7 +28,7 @@ class Ui_CurrentActivity(object):
                                    "color: rgba(37, 37, 37, 255);\n"
                                    "font-weight: bold")
         icon = QIcon()
-        icon.addFile("img/it.svg", QSize(), QIcon.Normal, QIcon.Off)
+        icon.addFile(str(get_img_dir() / "it.svg"), QSize(), QIcon.Normal, QIcon.Off)
         self.subject.setIcon(icon)
         self.subject.setIconSize(QSize(36, 26))
         self.blurEffect = QLabel(Form)

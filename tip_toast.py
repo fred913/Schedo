@@ -10,7 +10,7 @@ from typing_extensions import TypeVar
 
 import conf
 import presets
-from utils import assert_not_none, loadUi
+from utils import assert_not_none, create_from_ui
 
 attend_class = 'audio/attend_class.wav'
 finish_class = 'audio/finish_class.wav'
@@ -30,7 +30,7 @@ class tip_toast(QWidget):
 
     def __init__(self, pos, width, state=1, lesson_name=''):
         super().__init__()
-        loadUi("widget-toast-bar.ui", base_instance=self)
+        create_from_ui("widget-toast-bar.ui", parent=self)
 
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)

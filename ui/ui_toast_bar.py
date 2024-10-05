@@ -4,6 +4,8 @@ from PySide2.QtCore import QCoreApplication, QMetaObject, QSize, Qt
 from PySide2.QtGui import QFont, QPixmap
 from PySide2.QtWidgets import QFrame, QHBoxLayout, QLabel, QSizePolicy, QSpacerItem
 
+from assets import get_img_dir
+
 
 class Ui_ToastBar(object):
 
@@ -43,7 +45,7 @@ class Ui_ToastBar(object):
         self.icon = QLabel(self.backgnd)
         self.icon.setObjectName("icon")
         self.icon.setStyleSheet("background: transparent")
-        self.icon.setPixmap(QPixmap("img/attend_class.svg"))
+        self.icon.setPixmap(QPixmap(str(get_img_dir() / "attend_class.svg")))
 
         self.horizontalLayout_4.addWidget(self.icon)
 

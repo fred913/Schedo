@@ -16,8 +16,9 @@ from typing_extensions import TypeVar
 import conf
 import menu
 import presets
+from assets import get_img_dir
 from globals import APP_NAME, CONFIG_DIR
-from utils import WeekType, get_week_type, loadUi, read_schedule_config
+from utils import WeekType, create_from_ui, get_week_type, read_schedule_config
 
 current_week = dt.datetime.today().weekday()
 temp_schedule = {'schedule': {}, 'schedule_even': {}}
@@ -33,7 +34,7 @@ class ExactMenu(FluentWindow):
     def __init__(self):
         super().__init__()
         self.menu = None
-        self.interface = loadUi('exact_menu.ui')
+        self.interface = create_from_ui('exact_menu.ui', parent=self)
         self.initUI()
         self.init_interface()
 
@@ -189,15 +190,17 @@ class ExactMenu(FluentWindow):
         screen_geometry = primary_screen.geometry()
         screen_width = screen_geometry.width()
 
-        self.setWindowFlags(Qt.FramelessWindowHint)
+        # self.setWindowFlags(Qt.FramelessWindowHint)  # incompatible with PySide2-FluentWidgets
         setTheme(Theme.AUTO)
 
         self.resize(1000, 700)
         self.setWindowTitle(f'{APP_NAME} - 更多功能')
-        self.setWindowIcon(QIcon('img/favicon.png'))
-        self.move(int(screen_width / 2 - 500), 150)  # 窗体居中，但不完全居中
+        self.setWindowIcon(QIcon(str(get_img_dir() / 'favicon.png')))
+        self.move(int(screen_width / 2 - 500), 150)
 
         self.addSubInterface(self.interface, fIcon.INFO, '更多设置')
+
+        self.interface.setStyleSheet("""QLabel { font: "Microsoft YaHei UI"; }""")
 
     def closeEvent(self, e):
         e.ignore()

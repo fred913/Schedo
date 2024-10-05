@@ -120,10 +120,10 @@ class Ui_Configs(object):
         Form.setWindowTitle(QCoreApplication.translate("Form", "Form"))
         self.TitleLabel.setText(QCoreApplication.translate("Form", "配置文件"))
         self.SubtitleLabel_3.setText(QCoreApplication.translate("Form", "课程表"))
-        self.StrongBodyLabel_6.setText(QCoreApplication.translate("Form", "导入 Class Widgets 课程表"))
+        self.StrongBodyLabel_6.setText(QCoreApplication.translate("Form", "导入 Class Widgets 兼容格式 课程表"))
         self.CaptionLabel_5.setText(QCoreApplication.translate("Form", "需导入从其他 Class Widgets 导出的课程表"))
         self.im_schedule.setText(QCoreApplication.translate("Form", "导入课程表"))
-        self.StrongBodyLabel_8.setText(QCoreApplication.translate("Form", "导出 Class Widgets 课程表"))
+        self.StrongBodyLabel_8.setText(QCoreApplication.translate("Form", "导出 Class Widgets 兼容格式 课程表"))
         self.CaptionLabel_8.setText(QCoreApplication.translate("Form", "将当前使用的课程表文件 (.json) 导出"))
         self.ex_schedule.setText(QCoreApplication.translate("Form", "导出课程表"))
 

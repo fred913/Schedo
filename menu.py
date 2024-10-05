@@ -6,21 +6,26 @@ from typing import Type, cast
 
 import requests
 from loguru import logger
-from PySide2.QtCore import QDate, Qt, QThread, QTime, QUrl
+from PySide2.QtCore import (QByteArray, QCoreApplication, QDate, QEasingCurve, QParallelAnimationGroup, QPropertyAnimation, QRect, Qt, QThread, QTime, QTimer,
+                            QUrl)
 from PySide2.QtCore import Signal as pyqtSignal
 from PySide2.QtCore import SignalInstance
-from PySide2.QtGui import QDesktopServices, QIcon, QPixmap
-from PySide2.QtWidgets import QApplication, QFileDialog, QHBoxLayout, QHeaderView, QLabel, QSizePolicy, QSpacerItem, QTableWidgetItem, QWidget
+from PySide2.QtGui import QIcon, QPixmap
+from PySide2.QtWidgets import (QAbstractScrollArea, QApplication, QFileDialog, QGraphicsOpacityEffect, QHBoxLayout, QHeaderView, QLabel, QLayout, QSizePolicy,
+                               QSpacerItem, QTableWidgetItem, QVBoxLayout, QWidget)
 from qfluentwidgets import BodyLabel, CalendarPicker, CaptionLabel, ComboBox
 from qfluentwidgets import FluentIcon as fIcon
 from qfluentwidgets import (FluentWindow, Flyout, FlyoutAnimationType, InfoBarIcon, LineEdit, ListWidget, MessageBox, NavigationItemPosition,
-                            PrimaryPushButton, PushButton, SpinBox, SubtitleLabel, SwitchButton, TableWidget, Theme, TimePicker, ToolButton, setTheme)
+                            PrimaryPushButton, PushButton, SmoothScrollArea, SpinBox, SubtitleLabel, SwitchButton, TableWidget, Theme, TimePicker, ToolButton,
+                            setTheme)
 from typing_extensions import TypeVar
 
 import conf
 import presets
+from assets import get_img_dir
 from globals import APP_NAME
-from utils import assert_not_none, check_if_widget_included, loadUi, read_schedule_config, refresh_startup, update_schedule_config, update_widget_config
+from utils import (assert_not_none, check_if_widget_included, create_from_ui, load_ui, read_schedule_config, refresh_startup, update_schedule_config,
+                   update_widget_config)
 
 today = dt.date.today()
 
@@ -70,30 +75,45 @@ class desktop_widget(FluentWindow):
     def __init__(self):
         super().__init__()
         # 设置窗口无边框和透明背景
-        # self.setWindowFlags(Qt.FramelessWindowHint)  # incompatible with QFluentWidgets
+        # self.setWindowFlags(Qt.FramelessWindowHint)  # incompatible with PySide2-FluentWidgets
 
         # 创建子页面
-        self.spInterface = loadUi('menu-preview.ui', base_instance=self)
+        self.spInterface = create_from_ui('menu-preview.ui', parent=self)
         self.spInterface.setObjectName("spInterface")
-        self.teInterface = loadUi('menu-timeline_edit.ui', base_instance=self)
+
+        self.teInterface = create_from_ui('menu-timeline_edit.ui', parent=self)
         self.teInterface.setObjectName("teInterface")
-        self.seInterface = loadUi('menu-schedule_edit.ui', base_instance=self)
+
+        self.seInterface = create_from_ui('menu-schedule_edit.ui', parent=self)
         self.seInterface.setObjectName("seInterface")
-        self.adInterface = loadUi('menu-advance.ui', base_instance=self)
+
+        self.adInterface = create_from_ui('menu-advance.ui', parent=self)
         self.adInterface.setObjectName("adInterface")
-        self.ifInterface = loadUi('menu-about.ui', base_instance=self)
+
+        self.ifInterface = create_from_ui('menu-about.ui', parent=self)
         self.ifInterface.setObjectName("ifInterface")
-        self.ctInterface = loadUi('menu-custom.ui', base_instance=self)
+
+        self.ctInterface = create_from_ui('menu-custom.ui', parent=self)
         self.ctInterface.setObjectName("ctInterface")
-        self.cfInterface = loadUi('menu-configs.ui', base_instance=self)
+
+        self.cfInterface = create_from_ui('menu-configs.ui', parent=self)
         self.cfInterface.setObjectName("cfInterface")
 
         self.init_nav()
         self.init_window()
 
-        self.setStyleSheet("""QLabel {
-            font: 'Microsoft YaHei';
-        }""")
+        def _patched_setCurrentWidget(widget, popOut=True):
+            if isinstance(widget, QAbstractScrollArea):
+                widget.verticalScrollBar().setValue(0)
+
+            self.stackedWidget.view.setCurrentWidget(widget, duration=0)
+
+        self.stackedWidget.setCurrentWidget = _patched_setCurrentWidget  # type: ignore
+
+        self.init_animations()
+
+    def switchTo(self, interface: QWidget):
+        self.stackedWidget.setCurrentWidget(interface, popOut=False)
 
     def load_all_item(self):
         self.setup_timeline_edit()
@@ -147,17 +167,12 @@ class desktop_widget(FluentWindow):
 
     def setup_about_interface(self):
         self.version = self.findChild(BodyLabel, 'version')
-        self.version.setText(f'当前版本：{conf.CFG.other.version}\n正在检查最新版本…')
+        self.version.setText(f'当前版本：{conf.CFG.other.version}\n版本检查已禁用')
+        # self.version.setText(f'当前版本：{conf.CFG.other.version}\n正在检查最新版本…')
 
         # self.version_thread = VersionThread()
         # cast(SignalInstance, self.version_thread.version_signal).connect(self.ab_check_update)
         # self.version_thread.start()
-
-        # github_page = self.findChild(PushButton, "button_github")
-        # cast(SignalInstance, github_page.clicked).connect(lambda: QDesktopServices.openUrl(QUrl('https://github.com/RinLit-233-shiroko/Class-Widgets')))
-
-        # bilibili_page = self.findChild(PushButton, 'button_bilibili')
-        # cast(SignalInstance, bilibili_page.clicked).connect(lambda: QDesktopServices.openUrl(QUrl('https://space.bilibili.com/569522843')))
 
     def setup_advance_interface(self):
         margin_spin = self.findChild(SpinBox, 'margin_spin')
@@ -442,7 +457,7 @@ class desktop_widget(FluentWindow):
             for i in range(len(widget_config)):
                 widget_name = widget_config[i]
                 label = QLabel()
-                label.setPixmap(QPixmap(f'img/settings/{widget_name[:-3]}.png'))
+                label.setPixmap(QPixmap(str(get_img_dir() / 'settings' / f'{widget_name[:-3]}.png')))
                 # widget_instances[i] = label
                 widgets_preview.addWidget(label)
                 widget_instances.append(label)  # i really dont know where this is used
@@ -852,7 +867,94 @@ class desktop_widget(FluentWindow):
 
         self.move(int(screen_width / 2 - width / 2), 150)
         self.setWindowTitle(f'{APP_NAME} - 设置')
-        self.setWindowIcon(QIcon('img/favicon.png'))
+        self.setWindowIcon(QIcon(str(get_img_dir() / 'favicon.png')))
+
+        self.setStyleSheet("""QLabel { font: "Microsoft YaHei UI"; }""")
+
+    def init_animations(self):
+        cast(SignalInstance, self.stackedWidget.currentChanged).connect(self.animate_interface)
+
+    def animate_interface(self, *_, **__):
+        curr_intf = self.stackedWidget.currentWidget()
+        effects: 'list[tuple[QWidget, QRect, QGraphicsOpacityEffect]]' = []
+        all_elems: list[QWidget] = []
+
+        def collect_widgets(elements, all_elems):
+            for elem in elements:
+                if isinstance(elem, QWidget):
+                    all_elems.append(elem)
+                elif isinstance(elem, QLayout):
+                    collect_widgets(elem.children(), all_elems)
+
+        # Main code block
+        for elem in curr_intf.children():
+            if isinstance(elem, QWidget):
+                all_elems.append(elem)
+            elif isinstance(elem, QLayout):
+                collect_widgets(elem.children(), all_elems)
+
+        QCoreApplication.processEvents()
+
+        for elem in all_elems:
+            if elem is None:
+                continue
+
+            eff = QGraphicsOpacityEffect(elem)
+            elem.setGraphicsEffect(eff)
+            eff.setOpacity(0)
+            effects.append((elem, elem.geometry(), eff))
+
+            elem.setGeometry(elem.geometry().translated(0, 100))
+
+        # sort by geo.y + geo.height/2, ascending
+        effects.sort(key=lambda x: x[1].y() + x[1].height() / 2, reverse=False)
+
+        QCoreApplication.processEvents()
+
+        def rect2tuple(rect: QRect) -> 'tuple[int, int, int, int]':
+            return rect.x(), rect.y(), rect.width(), rect.height()
+
+        def _prepare_anim():
+            animated: 'list[tuple[int, int, int, int]]' = []
+            for i, (elem, rect, eff) in enumerate(effects):
+                if rect2tuple(elem.geometry()) in animated:
+                    eff.setOpacity(1)
+                    elem.setGeometry(rect)
+                    continue
+                animated.append(rect2tuple(elem.geometry()))
+
+                anim_opacity = QPropertyAnimation(eff, QByteArray(b'opacity'))
+                anim_opacity.setDuration(655)
+                anim_opacity.setStartValue(0)
+                anim_opacity.setEndValue(1)
+                anim_opacity.setEasingCurve(QEasingCurve.OutExpo)
+
+                anim_geometry = QPropertyAnimation(elem, QByteArray(b'geometry'))
+                anim_geometry.setDuration(655)
+                anim_geometry.setStartValue(rect.translated(0, 100))
+                anim_geometry.setEndValue(rect)
+                anim_geometry.setEasingCurve(QEasingCurve.OutExpo)
+
+                animgrp = QParallelAnimationGroup(elem)
+                animgrp.addAnimation(anim_opacity)
+                animgrp.addAnimation(anim_geometry)
+
+                delay = 48 * i
+
+                def _finish_hook_geo():
+                    eff.setOpacity(1)
+
+                anim_opacity.finished.connect(_finish_hook_geo)
+
+                def _finish_hook_op():
+                    elem.setGeometry(rect)
+
+                anim_geometry.finished.connect(_finish_hook_op)
+
+                # logger.debug('Animating interface')
+                QTimer.singleShot(delay, animgrp.start)
+
+        QTimer.singleShot(10, _prepare_anim)
 
     def closeEvent(self, e):
         e.ignore()

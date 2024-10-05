@@ -5,6 +5,7 @@ from .ui_countdown import Ui_Countdown as Ui_Countdown
 from .ui_countdown_custom import Ui_CountdownCustom as Ui_CountdownCustom
 from .ui_current_activity import Ui_CurrentActivity as Ui_CurrentActivity
 from .ui_custom import Ui_Custom as Ui_Custom
+from .ui_exactmenu import Ui_ExactMenu as Ui_ExactMenu
 from .ui_next_activity import Ui_NextActivity as Ui_NextActivity
 from .ui_preview import Ui_Preview as Ui_Preview
 from .ui_schedule_edit import Ui_ScheduleEdit as Ui_ScheduleEdit

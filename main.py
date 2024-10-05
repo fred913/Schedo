@@ -1,14 +1,18 @@
 import datetime as dt
+import signal
 import sys
+from pathlib import Path
 from shutil import copy
 from typing import Type
 from xml.dom.minidom import Attr
 
+import qfluentwidgets
 from loguru import logger
-from PySide2.QtCore import QByteArray, QEasingCurve, QPropertyAnimation, QRect, Qt, QTimer
-from PySide2.QtGui import QColor, QIcon
-from PySide2.QtWidgets import QApplication, QGraphicsBlurEffect, QGraphicsDropShadowEffect, QLabel, QMenu, QProgressBar, QPushButton, QSystemTrayIcon, QWidget
-from qfluentwidgets import Theme, setTheme, setThemeColor
+from PySide2.QtCore import QByteArray, QDateTime, QEasingCurve, QPropertyAnimation, QRect, Qt, QTimer
+from PySide2.QtGui import QFont, QFontDatabase, QIcon, QShowEvent
+from PySide2.QtWidgets import (QApplication, QGraphicsBlurEffect, QGraphicsDropShadowEffect, QLabel, QMenu, QProgressBar, QPushButton, QSystemTrayIcon,
+                               QVBoxLayout, QWidget)
+from qfluentwidgets import Action, FluentTranslator, SystemTrayMenu, Theme, setTheme, setThemeColor
 from typing_extensions import TypeVar
 
 import conf
@@ -16,8 +20,9 @@ import exact_menu
 import menu
 import presets
 import tip_toast
+from assets import get_assets_dir, get_img_dir
 from globals import APP_NAME, CONFIG_DIR
-from utils import WeekType, get_time_offset, get_week_type, is_temp_week, loadUi, read_countdown_config, read_schedule_config
+from utils import WeekType, calculate_countdown_from_config, create_from_ui, get_time_offset, get_week_type, is_temp_week, load_ui, read_schedule_config
 
 today = dt.date.today()
 filename = conf.CFG.general.schedule
@@ -318,12 +323,125 @@ get_next_lessons()
 T = TypeVar("T")
 
 
+class SystemTrayCard(QWidget):
+
+    def __init__(self, parent: 'DesktopWidget'):
+        super().__init__(parent=parent)
+
+        self._parent = parent
+
+        # Set widget size
+        self.setFixedSize(300, 120)
+        self.setContentsMargins(0, 0, 0, 0)
+
+        # in widget:
+
+        def get_font(size: int) -> QFont:
+            font = QFont("Microsoft YaHei UI")
+            font.setPixelSize(size)
+            font.setWeight(QFont.Normal)
+            return font
+
+        self.countdown_data = QLabel(self)
+        self.countdown_data.setGeometry(90, 29, 175, 47)
+        self.countdown_data.setFont(get_font(33))
+        self.countdown_data.setAlignment(Qt.AlignRight)
+        self.countdown_data.setStyleSheet("color: #3d3d3d;")
+        self.countdown_data.setText('00:00')
+
+        self.countdown_label = QLabel(self)
+        self.countdown_label.setGeometry(90, 10, 175, 33)
+        self.countdown_label.setFont(get_font(14))
+        self.countdown_label.setAlignment(Qt.AlignRight)
+        self.countdown_label.setStyleSheet("color: #3d3d3d;")
+        self.countdown_label.setText('距离上课还有')
+
+        self.current_activity_progress = QProgressBar(self)
+        self.current_activity_progress.setGeometry(5, 62, 120, 0)
+        self.current_activity_progress.setStyleSheet("QProgressBar::chunk {background-color: #d8d8d8;border-radius: 5px;border: 1px solid #d8d8d8;}")
+        self.current_activity_progress.setValue(30)
+
+        self.current_activity_text = QLabel(self)
+        self.current_activity_text.setGeometry(5, 6, 120, 60)
+        self.current_activity_text.setFont(get_font(46))
+        self.current_activity_text.setAlignment(Qt.AlignLeft)
+        self.current_activity_text.setStyleSheet("color: #3d3d3d;")
+        self.current_activity_text.setText('英语')
+
+        self.software_name = QLabel(self)
+        self.software_name.setGeometry(5, 84, 120, 34)
+        self.software_name.setFont(get_font(20))
+        self.software_name.setAlignment(Qt.AlignLeft)
+        self.software_name.setStyleSheet("color: #bebebe;")
+        self.software_name.setText(APP_NAME)
+
+        self.current_time = QLabel(self)
+        self.current_time.setGeometry(90, 83, 175, 22)
+        self.current_time.setFont(get_font(20))
+        self.current_time.setAlignment(Qt.AlignRight)
+        self.current_time.setStyleSheet("color: #4d4d4d;")
+        self.current_time.setText("00:00:00")
+
+        self.setStyleSheet("QLabel { line-height: 1em; }")
+
+        for wg in self.findChildren(QLabel):
+            wg.setContentsMargins(0, 0, 0, 0)
+            # move everything x by 15px
+            # wg.setGeometry(wg.x() - 15, wg.y(), wg.width(), wg.height())
+
+        self.update_data()
+
+        self.tmr = QTimer(self)
+        self.tmr.timeout.connect(self.update_data)
+        self.tmr.start(1000)
+
+    def destroy(self, destroyWindow: bool = ..., destroySubWindows: bool = ...) -> None:
+        self.tmr.stop()
+        return super().destroy(destroyWindow, destroySubWindows)
+
+    def update_data(self):
+        current_time = dt.datetime.now().strftime('%H:%M:%S')
+
+        get_start_time()
+        get_current_lessons()
+        get_current_state()
+        get_next_lessons()
+
+        # 倒计时
+        countdown_data = calculate_countdown_from_config()
+        if countdown_data is not None:
+            self.countdown_label.setText(f"距离 {countdown_data.label} 还有")
+            self.countdown_data.setText(f"{countdown_data.days} 天")
+        else:
+            self.countdown_label.setText('未设置倒数日')
+            self.countdown_data.setText('- 天')
+
+        cd_data = get_countdown(toast=False)
+
+        self.current_activity_progress.setValue(cd_data[2])
+
+        # 当前活动
+        self.current_activity_text.setText(current_state if current_state != '暂无课程' else '无课')
+
+        # 软件名称
+        self.software_name.setText(APP_NAME)
+
+        # 当前时间
+        self.current_time.setText(current_time)
+
+        # 刷新
+        self.repaint()
+
+
 class DesktopWidget(QWidget):  # 主要小组件
 
-    def __init__(self, path='widget-time.ui', pos=(100, 50), enable_tray=False):
+    def __init__(self, path: str, pos: 'tuple[int, int]', enable_tray=False):
         super().__init__()
         init_config()
-        loadUi(path, theme, base_instance=self)
+
+        # create_from_ui(path, theme, base_instance=self)
+        self.ui = load_ui(path)()  # this gets the Ui_Xxxx class
+        self.ui.setupUi(self)
 
         setTheme(Theme.LIGHT)
         setThemeColor('#36ABCF')
@@ -337,21 +455,21 @@ class DesktopWidget(QWidget):  # 主要小组件
         else:
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.Tool)
 
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
 
         # 添加阴影效果
-        shadow_effect = QGraphicsDropShadowEffect(self)
-        shadow_effect.setBlurRadius(22)
-        shadow_effect.setXOffset(0)
-        shadow_effect.setYOffset(7)
-        shadow_effect.setColor(QColor(0, 0, 0, 60))
-        self.setGraphicsEffect(shadow_effect)
+        # shadow_effect = QGraphicsDropShadowEffect(self)
+        # shadow_effect.setBlurRadius(22)
+        # shadow_effect.setXOffset(0)
+        # shadow_effect.setYOffset(7)
+        # shadow_effect.setColor(QColor(0, 0, 0, 60))
+        # self.setGraphicsEffect(shadow_effect)
 
         if enable_tray:  # 托盘图标
-            self.tray_icon = QSystemTrayIcon(QIcon("img/favicon.png"), self)
+            self.tray_icon = QSystemTrayIcon(QIcon(str(get_img_dir() / "favicon.png")), self)
             self.tray_icon.setToolTip(APP_NAME)
 
-            self.tray_menu = QMenu()
+            self.tray_menu = SystemTrayMenu()
 
             def increase_opacity():
                 conf.CFG.general.transparent = 240
@@ -361,11 +479,14 @@ class DesktopWidget(QWidget):  # 主要小组件
                 conf.CFG.general.transparent = 185
                 conf.save()
 
-            self.tray_menu.addAction('提高不透明度', increase_opacity)
-            self.tray_menu.addAction('降低不透明度', decrease_opacity)
+            self.tray_card = SystemTrayCard(self)
+            self.tray_menu.addWidget(self.tray_card, selectable=False)
 
-            self.tray_menu.addAction('设置', self.open_settings)
-            self.tray_menu.addAction('强制退出', lambda: sys.exit())
+            self.tray_menu.addAction(Action('提高不透明度', self, triggered=increase_opacity))
+            self.tray_menu.addAction(Action('降低不透明度', self, triggered=decrease_opacity))
+
+            self.tray_menu.addAction(Action('设置', self, triggered=self.open_settings))
+            self.tray_menu.addAction(Action('退出', self, triggered=_interrupt_handler))
 
             self.tray_icon.setContextMenu(self.tray_menu)
 
@@ -399,7 +520,7 @@ class DesktopWidget(QWidget):  # 主要小组件
             self.custom_countdown = self.findChild(QLabel, 'custom_countdown')
 
         # 设置窗口位置
-        self.animate_window(pos)
+        self.anim_window_creation(pos)
 
         self.update_data(1)
 
@@ -408,6 +529,9 @@ class DesktopWidget(QWidget):  # 主要小组件
         self.timer.timeout.connect(lambda: self.update_data(path=path))
         self.timer.start()
 
+    def showEvent(self, event: QShowEvent) -> None:
+        return super().showEvent(event)
+
     def findChild(self, arg__1: Type[T], arg__2: str = ...) -> T:
         return super().findChild(arg__1, arg__2)  # type: ignore
 
@@ -415,7 +539,6 @@ class DesktopWidget(QWidget):  # 主要小组件
         if self.menu is None or not self.menu.isVisible():  # 防多开
             self.menu = menu.desktop_widget()
             self.menu.show()
-            logger.info('打开“设置”')
         else:
             self.menu.raise_()
             self.menu.activateWindow()
@@ -431,31 +554,32 @@ class DesktopWidget(QWidget):  # 主要小组件
         else:
             conf.CFG.temp.hide = False
             conf.save()
+            broadcast_hide_show_state_change()
 
-    def animate_window(self, target_pos):  # 窗口动画！
+    def anim_window_creation(self, target_pos):  # 窗口动画！
         # 创建位置动画
         self.animation = QPropertyAnimation(self, QByteArray(b"geometry"))
-        self.animation.setDuration(525)  # 持续时间
+        self.animation.setDuration(555)  # 持续时间
         self.animation.setStartValue(QRect(target_pos[0], -self.height(), self.width(), self.height()))
         self.animation.setEndValue(QRect(target_pos[0], target_pos[1], self.width(), self.height()))
         self.animation.setEasingCurve(QEasingCurve.InOutCirc)  # 设置动画效果
         self.animation.start()
 
-    def animate_auto_hide(self):  # 自动隐藏窗口
+    def anim_window_hide(self):  # 隐藏窗口
         self.animation = QPropertyAnimation(self, QByteArray(b"geometry"))
-        self.animation.setDuration(625)  # 持续时间
+        self.animation.setDuration(555)  # 持续时间
         self.animation.setStartValue(QRect(self.x(), self.y(), self.width(), self.height()))
-        self.animation.setEndValue(QRect(self.x(), -self.height() + 40, self.width(), self.height()))
-        self.animation.setEasingCurve(QEasingCurve.InOutCirc)  # 设置动画效果
+        self.animation.setEndValue(QRect(self.x(), 40 - self.height(), self.width(), self.height()))
+        self.animation.setEasingCurve(QEasingCurve.OutExpo)  # 设置动画效果
         self.animation.start()
 
-    def animate_show(self):  # 显示窗口
+    def anim_window_show(self):  # 显示窗口
         self.animation = QPropertyAnimation(self, QByteArray(b"geometry"))
-        self.animation.setDuration(625)  # 持续时间
+        self.animation.setDuration(555)  # 持续时间
         self.animation.setStartValue(QRect(self.x(), self.y(), self.width(), self.height()))
         margin_cfg = conf.CFG.general.margin
         self.animation.setEndValue(QRect(self.x(), int(margin_cfg or "10"), self.width(), self.height()))
-        self.animation.setEasingCurve(QEasingCurve.InOutCirc)  # 设置动画效果
+        self.animation.setEasingCurve(QEasingCurve.OutExpo)  # 设置动画效果
         self.animation.start()
 
     def update_data(self, first_setup=0, path=''):
@@ -472,17 +596,7 @@ class DesktopWidget(QWidget):  # 主要小组件
         get_next_lessons()
 
         if not first_setup:  # 如果不是初次启动
-            if conf.CFG.general.auto_hide:  # 自动隐藏是否打开
-                if current_state == '课间' or current_state == '暂无课程':  # 上课时隐藏
-                    self.animate_show()
-                else:
-                    self.animate_auto_hide()
-            else:
-                # 手动隐藏
-                if conf.CFG.temp.hide:
-                    self.animate_auto_hide()
-                else:
-                    self.animate_show()
+            self.update_hide_show_state()
 
         if is_temp_week():  # 调休日
             current_week = conf.CFG.temp.set_week
@@ -500,10 +614,11 @@ class DesktopWidget(QWidget):  # 主要小组件
         else:
             cd_list = get_countdown(toast=True)
 
-        # 说实在这到底是怎么跑起来的
+        # infer widget type from ui attributes
         if hasattr(self, 'day_text'):
             self.date_text.setText(f'{today.year} 年 {today.month} 月')
             self.day_text.setText(f'{today.day} 日 {presets.week[today.weekday()]}')
+
         if hasattr(self, 'current_state_text'):
             # 实时活动
             self.current_state_text.setText(f'  {current_state}')
@@ -511,15 +626,18 @@ class DesktopWidget(QWidget):  # 主要小组件
             self.blur_effect.setBlurRadius(35)  # 模糊半径
             self.blur_effect_label.setStyleSheet(f'background-color: rgba{presets.subject_color(current_state)}, {bkg_opacity});')
             self.blur_effect_label.setGraphicsEffect(self.blur_effect)
+
         if hasattr(self, 'next_lesson_text'):
             self.nl_text.setText(get_next_lessons_text())
+
         if hasattr(self, 'activity_countdown'):
             if cd_list:
                 self.activity_countdown.setText(cd_list[1])
                 self.ac_title.setText(cd_list[0])
                 self.countdown_progress_bar.setValue(cd_list[2])
+
         if hasattr(self, 'countdown_custom_title'):
-            cd_data = read_countdown_config()
+            cd_data = calculate_countdown_from_config()
             if cd_data:
                 self.custom_title.setText(f'距离 {cd_data.label} 还有')
                 self.custom_countdown.setText(f"{cd_data.days} 天")
@@ -527,10 +645,28 @@ class DesktopWidget(QWidget):  # 主要小组件
                 self.custom_title.setText('未设置倒数日')
                 self.custom_countdown.setText('-')
 
+    def update_hide_show_state(self):
+        if conf.CFG.general.auto_hide:
+            if current_state == '课间' or current_state == '暂无课程':
+                self.anim_window_show()
+            else:
+                self.anim_window_hide()
+        else:
+            if conf.CFG.temp.hide:
+                self.anim_window_hide()
+            else:
+                self.anim_window_show()
+
     # 点击自动隐藏
     def mousePressEvent(self, event):
         conf.CFG.temp.hide = not conf.CFG.temp.hide
         conf.save()
+        broadcast_hide_show_state_change()
+
+
+def broadcast_hide_show_state_change():
+    for win in windows:
+        win.update_hide_show_state()
 
 
 def init_config():  # 重设配置文件
@@ -545,19 +681,48 @@ def init_config():  # 重设配置文件
         conf.save()
 
 
-def show_window(path, pos, enable_tray=False):
-    application = DesktopWidget(path, pos, enable_tray)
-    windows.append(application)  # 将窗口对象添加到列表
+def _interrupt_handler(*_, **__):
+    logger.warning('Shutting down.')
+    for application in windows:
+        application.close()
+    app.quit()
+
+
+def load_font_get_family(font_file: 'str | Path'):
+    fontDb = QFontDatabase()
+    fontID = fontDb.addApplicationFont(str(font_file))
+    fontFamilies = fontDb.applicationFontFamilies(fontID)
+    assert len(fontFamilies) == 1
+    return fontFamilies[0]
 
 
 if __name__ == '__main__':
-    QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
-    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
-    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
+    # QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
+    # QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+    # QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
+
+    translator = FluentTranslator()
 
     app = QApplication(sys.argv)
 
-    app.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
+    # ff = load_font_get_family(get_assets_dir() / "MiSansVF.ttf")
+
+    # def getFont(fontSize=14, weight=QFont.Normal):
+    #     font = QFont()
+    #     font.setFamilies([ff])
+    #     font.setPixelSize(fontSize)
+    #     font.setWeight(weight)
+    #     return font
+
+    # qfluentwidgets.common.font.getFont = getFont
+
+    # app.setFont(QFont(ff))
+
+    # app.setFont(QFont('Microsoft YaHei UI'))
+
+    app.installTranslator(translator)
+
+    # app.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
 
     if sys.platform == 'win32' and sys.getwindowsversion().build >= 22000:  # 修改在win11高版本阴影异常
         app.setStyle("Fusion")
@@ -605,15 +770,20 @@ if __name__ == '__main__':
     #         logger.error(f'添加快捷方式失败：{e}')
 
     for w in range(len(widgets)):
-        if w == 0:
-            show_window(widgets[w], (cal_start_width(w), start_y), True)
-        else:
-            show_window(widgets[w], (cal_start_width(w), start_y))
+        # if w == 0:
+        #     show_window(widgets[w], (cal_start_width(w), start_y), True)
+        # else:
+        #     show_window(widgets[w], (cal_start_width(w), start_y))
+        wg = DesktopWidget(widgets[w], (cal_start_width(w), start_y), enable_tray=w == 0)
+        windows.append(wg)  # 将窗口对象添加到列表
 
     for application in windows:  # 显示所有窗口
         logger.info(f'显示窗口：{application.windowTitle()}')
         application.show()
         app.processEvents()
+
+    signal.signal(signal.SIGINT, _interrupt_handler)
+    signal.signal(signal.SIGTERM, _interrupt_handler)
 
     try:
         sys.exit(app.exec())

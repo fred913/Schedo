@@ -2,8 +2,6 @@
 
 Class schedule, made simple.
 
-![Interface](img/preview.png)
-
 
 ## Installation & Usage
 Download the latest compressed file from the Release section, extract it to a suitable location, and then open `Schedo.exe`.
@@ -29,12 +27,11 @@ You can access settings or exit the program via the tray menu.
    ```
 6. Package the application with PyInstaller by executing the following command in the terminal:
    ```
-   pyinstaller main.py -w -i ./img/favicon.ico -n Schedo
+   pyinstaller main.py -w -i ./assets/img/favicon.ico -n Schedo
    ```
 7. Copy the dependencies and resources to the build output by executing the following command in the terminal:
    ```
    xcopy /E /I config .\dist\Schedo\config
-   xcopy /E /I img .\dist\Schedo\img
    xcopy /E /I audio .\dist\Schedo\audio
    ```
 8. Schedo is now ready to be used. You can find the build output in the `dist` folder.
