@@ -914,47 +914,46 @@ class desktop_widget(FluentWindow):
         def rect2tuple(rect: QRect) -> 'tuple[int, int, int, int]':
             return rect.x(), rect.y(), rect.width(), rect.height()
 
-        def _prepare_anim():
-            animated: 'list[tuple[int, int, int, int]]' = []
-            for i, (elem, rect, eff) in enumerate(effects):
-                if rect2tuple(elem.geometry()) in animated:
-                    eff.setOpacity(1)
-                    elem.setGeometry(rect)
-                    continue
-                animated.append(rect2tuple(elem.geometry()))
+        animated: 'set[tuple[int, int, int, int]]' = set()
+        for i, (elem, rect, eff) in enumerate(effects):
+            if rect2tuple(elem.geometry()) in animated:
+                eff.setOpacity(1)
+                elem.setGeometry(rect)
+                continue
+            animated.add(rect2tuple(elem.geometry()))
 
-                anim_opacity = QPropertyAnimation(eff, QByteArray(b'opacity'))
-                anim_opacity.setDuration(655)
-                anim_opacity.setStartValue(0)
-                anim_opacity.setEndValue(1)
-                anim_opacity.setEasingCurve(QEasingCurve.OutExpo)
+            anim_opacity = QPropertyAnimation(eff, QByteArray(b'opacity'))
+            anim_opacity.setDuration(655)
+            anim_opacity.setStartValue(0)
+            anim_opacity.setEndValue(1)
+            anim_opacity.setEasingCurve(QEasingCurve.OutExpo)
 
-                anim_geometry = QPropertyAnimation(elem, QByteArray(b'geometry'))
-                anim_geometry.setDuration(655)
-                anim_geometry.setStartValue(rect.translated(0, 100))
-                anim_geometry.setEndValue(rect)
-                anim_geometry.setEasingCurve(QEasingCurve.OutExpo)
+            anim_geometry = QPropertyAnimation(elem, QByteArray(b'geometry'))
+            anim_geometry.setDuration(655)
+            anim_geometry.setStartValue(rect.translated(0, 100))
+            anim_geometry.setEndValue(rect)
+            anim_geometry.setEasingCurve(QEasingCurve.OutExpo)
 
-                animgrp = QParallelAnimationGroup(elem)
-                animgrp.addAnimation(anim_opacity)
-                animgrp.addAnimation(anim_geometry)
+            animgrp = QParallelAnimationGroup(elem)
+            animgrp.addAnimation(anim_opacity)
+            animgrp.addAnimation(anim_geometry)
 
-                delay = 48 * i
+            delay = 48 * i
 
-                def _finish_hook_geo():
-                    eff.setOpacity(1)
+            def _finish_hook_geo():
+                eff.setOpacity(1)
 
-                anim_opacity.finished.connect(_finish_hook_geo)
+            anim_opacity.finished.connect(_finish_hook_geo)
 
-                def _finish_hook_op():
-                    elem.setGeometry(rect)
+            def _finish_hook_op():
+                elem.setGeometry(rect)
 
-                anim_geometry.finished.connect(_finish_hook_op)
+            anim_geometry.finished.connect(_finish_hook_op)
 
-                # logger.debug('Animating interface')
-                QTimer.singleShot(delay, animgrp.start)
+            # logger.debug('Animating interface')
+            QTimer.singleShot(delay, animgrp.start)
 
-        QTimer.singleShot(10, _prepare_anim)
+            QCoreApplication.processEvents()
 
     def closeEvent(self, e):
         e.ignore()
