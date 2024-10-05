@@ -37,29 +37,27 @@ filename = conf.CFG.general.schedule
 schedule_dict = {}  # 对应时间线的课程表
 schedule_even_dict = {}  # 对应时间线的课程表（双周）
 
+# class VersionThread(QThread):  # 获取最新版本号
+#     version_signal = pyqtSignal(str)
 
-class VersionThread(QThread):  # 获取最新版本号
-    version_signal = pyqtSignal(str)
+#     def __init__(self):
+#         super().__init__()
 
-    def __init__(self):
-        super().__init__()
+#     def run(self):
+#         version = self.get_latest_version()
+#         cast(SignalInstance, self.version_signal).emit(version)
 
-    def run(self):
-        version = self.get_latest_version()
-        cast(SignalInstance, self.version_signal).emit(version)
-
-    def get_latest_version(self):
-        url = "https://api.github.com/repos/RinLit-233-shiroko/Class-Widgets/releases/latest"
-        try:
-            response = requests.get(url)
-            if response.status_code == 200:
-                data = response.json()
-                return data.get("tag_name")
-            else:
-                return f"无法获取版本信息 错误代码：{response.status_code}"
-        except requests.exceptions.RequestException as e:
-            return f"请求失败: {e}"
-
+#     def get_latest_version(self):
+#         url = "https://api.github.com/repos/RinLit-233-shiroko/Class-Widgets/releases/latest"
+#         try:
+#             response = requests.get(url)
+#             if response.status_code == 200:
+#                 data = response.json()
+#                 return data.get("tag_name")
+#             else:
+#                 return f"无法获取版本信息 错误代码：{response.status_code}"
+#         except requests.exceptions.RequestException as e:
+#             return f"请求失败: {e}"
 
 T = TypeVar('T')
 
@@ -151,15 +149,15 @@ class desktop_widget(FluentWindow):
         self.version = self.findChild(BodyLabel, 'version')
         self.version.setText(f'当前版本：{conf.CFG.other.version}\n正在检查最新版本…')
 
-        self.version_thread = VersionThread()
-        cast(SignalInstance, self.version_thread.version_signal).connect(self.ab_check_update)
-        self.version_thread.start()
+        # self.version_thread = VersionThread()
+        # cast(SignalInstance, self.version_thread.version_signal).connect(self.ab_check_update)
+        # self.version_thread.start()
 
-        github_page = self.findChild(PushButton, "button_github")
-        cast(SignalInstance, github_page.clicked).connect(lambda: QDesktopServices.openUrl(QUrl('https://github.com/RinLit-233-shiroko/Class-Widgets')))
+        # github_page = self.findChild(PushButton, "button_github")
+        # cast(SignalInstance, github_page.clicked).connect(lambda: QDesktopServices.openUrl(QUrl('https://github.com/RinLit-233-shiroko/Class-Widgets')))
 
-        bilibili_page = self.findChild(PushButton, 'button_bilibili')
-        cast(SignalInstance, bilibili_page.clicked).connect(lambda: QDesktopServices.openUrl(QUrl('https://space.bilibili.com/569522843')))
+        # bilibili_page = self.findChild(PushButton, 'button_bilibili')
+        # cast(SignalInstance, bilibili_page.clicked).connect(lambda: QDesktopServices.openUrl(QUrl('https://space.bilibili.com/569522843')))
 
     def setup_advance_interface(self):
         margin_spin = self.findChild(SpinBox, 'margin_spin')
@@ -854,7 +852,7 @@ class desktop_widget(FluentWindow):
 
         self.move(int(screen_width / 2 - width / 2), 150)
         self.setWindowTitle(f'{APP_NAME} - 设置')
-        self.setWindowIcon(QIcon('img/favicon-settings.ico'))
+        self.setWindowIcon(QIcon('img/favicon.png'))
 
     def closeEvent(self, e):
         e.ignore()

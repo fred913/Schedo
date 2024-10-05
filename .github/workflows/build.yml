@@ -38,16 +38,16 @@ jobs:
       - name: Package application with PyInstaller
         run: |
           .\venv\Scripts\activate
-          pyinstaller main.py -w -i ./img/favicon.ico -n Class-Widgets
+          pyinstaller main.py -w -i ./img/favicon.ico -n Schedo
 
       - name: Copy dependencies and resources
         run: |
-          xcopy /E /I config .\dist\Class-Widgets\config
-          xcopy /E /I img .\dist\Class-Widgets\img
-          xcopy /E /I audio .\dist\Class-Widgets\audio
+          xcopy /E /I config .\dist\Schedo\config
+          xcopy /E /I img .\dist\Schedo\img
+          xcopy /E /I audio .\dist\Schedo\audio
 
       - name: Archive the build output
         uses: actions/upload-artifact@v4
         with:
           name: Windows-amd64
-          path: ./dist/Class-Widgets/
+          path: ./dist/Schedo/

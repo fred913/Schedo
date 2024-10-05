@@ -194,7 +194,7 @@ class ExactMenu(FluentWindow):
 
         self.resize(1000, 700)
         self.setWindowTitle(f'{APP_NAME} - 更多功能')
-        self.setWindowIcon(QIcon('img/favicon-exmenu.ico'))
+        self.setWindowIcon(QIcon('img/favicon.png'))
         self.move(int(screen_width / 2 - 500), 150)  # 窗体居中，但不完全居中
 
         self.addSubInterface(self.interface, fIcon.INFO, '更多设置')

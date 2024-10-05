@@ -183,7 +183,7 @@ def export_schedule(filepath, filename):  # 导出课表
         return e
 
 
-def get_widget_config():
+def get_widget_config() -> 'list[str]':
     try:
         with open(f'config/widget.json', 'r', encoding='utf-8') as file:
             data = json.load(file)

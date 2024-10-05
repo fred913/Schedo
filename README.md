@@ -1,18 +1,12 @@
-<p align="center">
-  <img width="18%" align="center" src="img/Logo.png" alt="logo">
-</p>
-  <h1 align="center">
-  Class Widgets
-</h1>
-<p align="center">
-  A desktop class schedule app
-</p>
+# Schedo
+
+Class schedule, made simple.
 
 ![Interface](img/preview.png)
 
 
 ## Installation & Usage
-Download the latest compressed file from the Release section, extract it to a suitable location, and then open `ClassWidgets.exe`.
+Download the latest compressed file from the Release section, extract it to a suitable location, and then open `Schedo.exe`.
 You can access settings or exit the program via the tray menu.
 
 ### Building from source
@@ -35,19 +29,21 @@ You can access settings or exit the program via the tray menu.
    ```
 6. Package the application with PyInstaller by executing the following command in the terminal:
    ```
-   pyinstaller main.py -w -i ./img/favicon.ico -n Class-Widgets
+   pyinstaller main.py -w -i ./img/favicon.ico -n Schedo
    ```
 7. Copy the dependencies and resources to the build output by executing the following command in the terminal:
    ```
-   xcopy /E /I config .\dist\Class-Widgets\config
-   xcopy /E /I ui .\dist\Class-Widgets\ui
-   xcopy /E /I img .\dist\Class-Widgets\img
-   xcopy /E /I audio .\dist\Class-Widgets\audio
+   xcopy /E /I config .\dist\Schedo\config
+   xcopy /E /I img .\dist\Schedo\img
+   xcopy /E /I audio .\dist\Schedo\audio
    ```
-8. Class Widgets is now ready to be used. You can find the build output in the `dist` folder.
+8. Schedo is now ready to be used. You can find the build output in the `dist` folder.
 
 ## License
-This project (Class Widgets) is released under the GPL-3.0 license. Please refer to the [LICENSE](./LICENSE) file for details.
+This project (Schedo) is released under the GPL-3.0 license. Please refer to the [LICENSE](./LICENSE) file for details.
+
+### Source
+Originally this project is created by [RinLit-233-shiroko](https://github.com/RinLit-233-shiroko) called Class-Widgets. This is forked and completely (almost) rewritten by [fred913](https://github.com/fred913) to make it more efficient, user-friendly, cusomizable and lightweight.
 
 ## Acknowledgments
 This program uses [zhiyiYo](https://github.com/zhiyiYo/)'s [PyQt-Fluent-Widgets](https://github.com/zhiyiYo/PyQt-Fluent-Widgets) for the UI interface of the settings. This is an awesome project that provides a clean and modern UI for PyQt applications, and this project won't be that clean and user-friendly without it.
@@ -56,8 +52,8 @@ This program uses [zhiyiYo](https://github.com/zhiyiYo/)'s [PyQt-Fluent-Widgets]
 
 [![][contrib-image]][contrib-link]
 
-[contrib-image]: https://contrib.rocks/image?repo=fred913/Class-Widgets
+[contrib-image]: https://contrib.rocks/image?repo=fred913/Schedo
 
-[contrib-link]: https://github.com/fred913/Class-Widgets/graphs/contributors
+[contrib-link]: https://github.com/fred913/Schedo/graphs/contributors
 
 <!-- One more thing: credit whitechi73 for providing the contributors section template :D -->

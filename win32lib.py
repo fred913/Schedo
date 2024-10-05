@@ -100,7 +100,7 @@ class _W32LIB:
             logger.error(f"Error creating Desktop shortcut: {e}")
 
     @classmethod
-    def add_to_startup(cls, file_path='', icon_path=''):
+    def add_to_startup(cls, lnk_name: str, file_path: str, icon_path: str):
         cls.raise_for_platform()
 
         from win32com.client import Dispatch
@@ -123,7 +123,7 @@ class _W32LIB:
 
         startup_folder = os.path.join(appdata, 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup')
 
-        shortcut_path = os.path.join(startup_folder, f'{APP_NAME}.lnk')
+        shortcut_path = os.path.join(startup_folder, lnk_name)
 
         # Create shortcut
         shell = Dispatch('WScript.Shell')
@@ -134,7 +134,7 @@ class _W32LIB:
         shortcut.save()
 
     @classmethod
-    def remove_from_startup(cls):
+    def remove_from_startup(cls, lnk_name: str):
         cls.raise_for_platform()
 
         appdata = os.getenv('APPDATA')
@@ -142,7 +142,7 @@ class _W32LIB:
             raise UnsupportedOperationPlatformError("APPDATA environment variable not found.")
 
         startup_folder = os.path.join(appdata, 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup')
-        shortcut_path = os.path.join(startup_folder, f'{APP_NAME}.lnk')
+        shortcut_path = os.path.join(startup_folder, lnk_name)
 
         if os.path.exists(shortcut_path):
             os.remove(shortcut_path)

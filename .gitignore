@@ -1,8 +1,10 @@
 # - Project-specific files
 
-# Class-Widgets user configuration file
+# Configuration files migrated from Class Widgets
 /config.ini
 /config.ini.bak
+
+# Schedulify user configuration file
 /config.json
 
 /*.exe

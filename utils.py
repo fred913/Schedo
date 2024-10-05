@@ -23,20 +23,6 @@ from conf import CFG
 #         ui = uic.load_ui.loadUi(ui_file, baseinstance=base_instance)
 #     assert ui is not None, f"Failed to load UI file: {ui_file}"
 #     return ui
-# from .ui_about import Ui_Form as Ui_About
-# from .ui_advance import Ui_Form as Ui_Advance
-# from .ui_configs import Ui_Form as Ui_Configs
-# from .ui_countdown import Ui_Form as Ui_Countdown
-# from .ui_countdown_custom import Ui_Form as Ui_CountdownCustom
-# from .ui_current_activity import Ui_Form as Ui_CurrentActivity
-# from .ui_custom import Ui_Form as Ui_Custom
-# from .ui_next_activity import Ui_Form as Ui_NextActivity
-# from .ui_preview import Ui_Form as Ui_Preview
-# from .ui_schedule_edit import Ui_Form as Ui_ScheduleEdit
-# from .ui_time import Ui_Form as Ui_Time
-# from .ui_timeline_edit import Ui_Form as Ui_TimelineEdit
-# from .ui_toast_bar import Ui_Form as Ui_ToastBar
-# from .ui_weather import Ui_Form as Ui_Weather
 
 UI_MAPPING = {
     "exact_menu.ui": "ui_exact_menu.py",
@@ -247,6 +233,6 @@ def assert_not_none(x: 'T | None') -> T:
 
 def refresh_startup():
     if conf.CFG.general.auto_startup:
-        win32lib.win32lib.remove_from_startup()
+        win32lib.win32lib.remove_from_startup('Schedo.lnk')
 
-    win32lib.win32lib.add_to_startup('ClassWidgets.exe', 'img/favicon.ico')
+    win32lib.win32lib.add_to_startup('Schedo.lnk', 'Schedo.exe', 'img/favicon.ico')

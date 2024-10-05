@@ -36,7 +36,7 @@ next_lessons = []
 bkg_opacity = 165  # 模糊label的透明度(0~255)
 time_offset = 0  # 时差偏移
 
-logger.add("log/ClassWidgets_main_{time}.log", rotation="10 MB", encoding="utf-8", retention="2 days")
+logger.add("log/Schedo-{time}.log", rotation="10 MB", encoding="utf-8", retention="2 days")
 
 
 # 获取课程上下午开始时间
@@ -115,7 +115,7 @@ def get_current_lessons():  # 获取今日课程
             if schedule is None:
                 logger.error('课程表文件格式错误：缺少 schedule 字段（单周）')
     else:
-        logger.info('获取单周课程')
+        # logger.debug('获取单周课程')
         schedule = loaded_data.get('schedule')
         if schedule is None:
             logger.error('课程表文件格式错误：缺少 schedule 字段（单周）')
@@ -551,7 +551,14 @@ def show_window(path, pos, enable_tray=False):
 
 
 if __name__ == '__main__':
+    QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
+
     app = QApplication(sys.argv)
+
+    app.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
+
     if sys.platform == 'win32' and sys.getwindowsversion().build >= 22000:  # 修改在win11高版本阴影异常
         app.setStyle("Fusion")
 
