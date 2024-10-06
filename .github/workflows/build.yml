@@ -43,6 +43,7 @@ jobs:
       - name: Copy dependencies and resources
         run: |
           xcopy /E /I config .\dist\Schedo\config
+          xcopy /E /I assets .\dist\Schedo\assets
           xcopy /E /I audio .\dist\Schedo\audio
 
       - name: Archive the build output

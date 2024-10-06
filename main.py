@@ -466,32 +466,38 @@ class DesktopWidget(QWidget):  # 主要小组件
         # self.setGraphicsEffect(shadow_effect)
 
         if enable_tray:  # 托盘图标
-            self.tray_icon = QSystemTrayIcon(QIcon(str(get_img_dir() / "favicon.ico")), self)
-            self.tray_icon.setToolTip(APP_NAME)
+            if not QSystemTrayIcon.isSystemTrayAvailable():
+                logger.warning('系统托盘不可用')
+            else:
+                logger.debug('enable tray')
+                trayico = str(get_img_dir() / "favicon.ico")
+                logger.debug(f'trayico: {trayico}')
+                self.tray_icon = QSystemTrayIcon(QIcon(trayico), self)
+                self.tray_icon.setToolTip(APP_NAME)
 
-            self.tray_menu = SystemTrayMenu()
+                self.tray_menu = SystemTrayMenu()
 
-            def increase_opacity():
-                conf.CFG.general.transparent = 240
-                conf.save()
+                def increase_opacity():
+                    conf.CFG.general.transparent = 240
+                    conf.save()
 
-            def decrease_opacity():
-                conf.CFG.general.transparent = 185
-                conf.save()
+                def decrease_opacity():
+                    conf.CFG.general.transparent = 185
+                    conf.save()
 
-            self.tray_card = SystemTrayCard(self)
-            self.tray_menu.addWidget(self.tray_card, selectable=False)
+                self.tray_card = SystemTrayCard(self)
+                self.tray_menu.addWidget(self.tray_card, selectable=False)
 
-            self.tray_menu.addAction(Action('提高不透明度', self, triggered=increase_opacity))
-            self.tray_menu.addAction(Action('降低不透明度', self, triggered=decrease_opacity))
+                self.tray_menu.addAction(Action('提高不透明度', self, triggered=increase_opacity))
+                self.tray_menu.addAction(Action('降低不透明度', self, triggered=decrease_opacity))
 
-            self.tray_menu.addAction(Action('设置', self, triggered=self.open_settings))
-            self.tray_menu.addAction(Action('退出', self, triggered=_interrupt_handler))
+                self.tray_menu.addAction(Action('设置', self, triggered=self.open_settings))
+                self.tray_menu.addAction(Action('退出', self, triggered=_interrupt_handler))
 
-            self.tray_icon.setContextMenu(self.tray_menu)
+                self.tray_icon.setContextMenu(self.tray_menu)
 
-            # 显示托盘图标
-            self.tray_icon.show()
+                # 显示托盘图标
+                self.tray_icon.show()
 
         if path == 'widget-time.ui':  # 日期显示
             self.date_text = self.findChild(QLabel, 'date_text')
@@ -793,4 +799,4 @@ if __name__ == '__main__':
         except Exception as e:
             raise e from None
     finally:
-        exit()
+        sys.exit()

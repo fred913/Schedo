@@ -32,6 +32,7 @@ You can access settings or exit the program via the tray menu.
 7. Copy the dependencies and resources to the build output by executing the following command in the terminal:
    ```
    xcopy /E /I config .\dist\Schedo\config
+   xcopy /E /I assets .\dist\Schedo\assets
    xcopy /E /I audio .\dist\Schedo\audio
    ```
 8. Schedo is now ready to be used. You can find the build output in the `dist` folder.
