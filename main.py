@@ -466,7 +466,7 @@ class DesktopWidget(QWidget):  # 主要小组件
         # self.setGraphicsEffect(shadow_effect)
 
         if enable_tray:  # 托盘图标
-            self.tray_icon = QSystemTrayIcon(QIcon(str(get_img_dir() / "favicon.png")), self)
+            self.tray_icon = QSystemTrayIcon(QIcon(str(get_img_dir() / "favicon.ico")), self)
             self.tray_icon.setToolTip(APP_NAME)
 
             self.tray_menu = SystemTrayMenu()
