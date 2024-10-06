@@ -26,8 +26,8 @@ You can access settings or exit the program via the tray menu.
    pip install pyinstaller
    ```
 6. Package the application with PyInstaller by executing the following command in the terminal:
-   ```
-   pyinstaller main.py -w -i ./assets/img/favicon.ico -n Schedo
+   ``` also pack assets/ dir with the executable
+   pyinstaller main.py -w --add-data "assets/*;assets/" -i ./assets/img/favicon.ico -n Schedo
    ```
 7. Copy the dependencies and resources to the build output by executing the following command in the terminal:
    ```

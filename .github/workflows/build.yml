@@ -38,7 +38,7 @@ jobs:
       - name: Package application with PyInstaller
         run: |
           .\venv\Scripts\activate
-          pyinstaller main.py -w -i ./assets/img/favicon.ico -n Schedo
+          pyinstaller main.py -w --add-data "assets/*;assets/" -i ./assets/img/favicon.ico -n Schedo
 
       - name: Copy dependencies and resources
         run: |
